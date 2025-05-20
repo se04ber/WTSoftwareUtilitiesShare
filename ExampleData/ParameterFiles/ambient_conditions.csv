@@ -7,8 +7,8 @@ y_measure,176.29,176.60
 z_measure,162,162.5
 pressure,1009.38,1009.50
 temperature,23.5,23.8
-calibration_curve,0.3,0.32
-mass_flow_controller,X,Y
+calibration_curve,None,None
+mass_flow_controller,0.300,0.300
 calibration_factor,1,1.05
 scaling_factor,0.637,0.640
 scale,250,252

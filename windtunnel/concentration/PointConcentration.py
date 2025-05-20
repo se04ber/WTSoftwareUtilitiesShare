@@ -239,7 +239,7 @@ class PointConcentration(pd.DataFrame):
         pressure=None if ambient_conditions[name]['pressure'] =='None' else np.float64(ambient_conditions[name]['pressure'])		
         temperature=None if ambient_conditions[name]['temperature'] =='None' else np.float64(ambient_conditions[name]['temperature'])
         calibration_curve=None if ambient_conditions[name]['calibration_curve'] =='None' else np.float64(ambient_conditions[name]['calibration_curve'])
-        mass_flow_controller=None if ambient_conditions[name]['mass_flow_controller'] =='None' else ambient_conditions[name]['mass_flow_controller']
+        mass_flow_controller=None if ambient_conditions[name]['mass_flow_controller'] =='None' else np.float64(ambient_conditions[name]['mass_flow_controller'])
         calibration_factor=None if ambient_conditions[name]['calibration_factor'] =='None' else np.float64(ambient_conditions[name]['calibration_factor'])
         scaling_factor=None if ambient_conditions[name]['scaling_factor'] =='None' else np.float64(ambient_conditions[name]['scaling_factor'])	
         scale=None if ambient_conditions[name]['scale'] =='None' else np.float64(ambient_conditions[name]['scale'])
@@ -1140,7 +1140,7 @@ class PointConcentration(pd.DataFrame):
         }
         
 
-    def analyze_concentration_fluctuations(self,dimensionless="False" ,intermittency_threshold=1.5,plot=True,errorConc=None,errorType=None, threshold_method='mean',threshold_type="absolute"):
+    def analyze_concentration_fluctuations(self,dimensionless="False" ,intermittency_threshold=1.5,plot=True,errorConc=None,errorType=None, threshold_method='mean',threshold_type="ratio"):
         """
         Quick analysis of concentration fluctuations.
         
@@ -1171,8 +1171,8 @@ class PointConcentration(pd.DataFrame):
 
         # Key metrics
         peakToMeanRatio = np.max(concentration) / np.mean(concentration)
-        intermittency_factor = self.calculate_intermittency(threshold_method='mean',threshold_factor=intermittency_threshold,threshold_type="percentage")["intermittency_factor"]
-        turbulence_intensity_v = self.calculate_turbulence_intensity(dimensionless="False",returnDistribution="False",returnMetrics="False")
+        intermittency_factor = self.calculate_intermittency(threshold_method=threshold_method,threshold_factor=intermittency_threshold,threshold_type=threshold_type)["intermittency_factor"]
+        turbulence_intensity_v = self.calculate_turbulence_intensity(dimensionless=dimensionless,returnDistribution="False",returnMetrics="False")
         
          # Sampling frequency
         fs = 1.0 / np.mean(np.diff(time))
