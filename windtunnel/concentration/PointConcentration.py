@@ -4,7 +4,7 @@ import math
 import logging
 import os
 import pandas as pd
-import windtunnel as wt
+import sys
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import string
@@ -16,7 +16,9 @@ from typing import Optional
 logger = logging.getLogger()
 __all__ = ['PointConcentration']
 
-
+path_dir = "/Users/norakaiser/Masterthesis/Testdatenauswertung/WTSoftwareUtilitiesShare"
+sys.path.append(os.path.abspath(path_dir))
+import windtunnel as wt
 # %%#
 class PointConcentration(pd.DataFrame):
     """ PointConcentration is a class that holds data collected during
@@ -1060,7 +1062,7 @@ class PointConcentration(pd.DataFrame):
         return turbulence_intensity
     
 
-    def calculate_intermittency(self, dimensionless=False, threshold_method='mean',threshold_type="percentage", threshold_factor=1.5):
+    def calculate_intermittency(self, dimensionless=False, threshold_method='mean',threshold_type="ratio", threshold_factor=1.5):
         """
         Calculate intermittency factor for concentration time series.
         
@@ -1171,7 +1173,7 @@ class PointConcentration(pd.DataFrame):
 
         # Key metrics
         peakToMeanRatio = np.max(concentration) / np.mean(concentration)
-        intermittency_factor = self.calculate_intermittency(threshold_method='mean',threshold_factor=intermittency_threshold,threshold_type="percentage")["intermittency_factor"]
+        intermittency_factor = self.calculate_intermittency(threshold_method=threshold_method,threshold_factor=intermittency_threshold,threshold_type=threshold_type)["intermittency_factor"]
         turbulence_intensity_v = self.calculate_turbulence_intensity(dimensionless="False",returnDistribution="False",returnMetrics="False")
         
          # Sampling frequency
