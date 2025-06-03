@@ -1211,5 +1211,36 @@ class PointConcentration(pd.DataFrame):
             #'fluctuation_intensity': fluctuation_intensity,
             
         }
+    
+
+    def downAverage(self, averageInterval,measurementFreq=0.005, columns=["net_concentration"]):
+        """
+        Down-average specified columns by grouping data into time intervals.
+        
+        Args:
+            averageInterval: Time interval in seconds for averaging
+            columns: List of column names to average
+        """
+        #Assuming 0.005s measurmenet frequency
+        rows_per_interval = int(averageInterval / measurementFreq)
+        
+        for col in columns:
+            data = getattr(self, col)  # Get the time series array
+        
+            data = data.to_numpy()
+
+            # Reshape and average in chunks
+            n_complete_intervals = len(data) // rows_per_interval
+            reshaped = data[:n_complete_intervals * rows_per_interval].reshape(-1, rows_per_interval)
+            averaged = np.mean(reshaped, axis=1)
+            
+            # Handle remaining samples if any
+            if len(data) % rows_per_interval:
+                remaining = np.mean(data[n_complete_intervals * rows_per_interval:])
+                averaged = np.concatenate([averaged, [remaining]])
+            
+            setattr(self, col, pd.Series(averaged))  # Update the attribute
+
+        return 
 
 # %%

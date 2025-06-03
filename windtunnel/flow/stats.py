@@ -995,7 +995,7 @@ def power_law(u_comp,height,u_ref,z_ref,alpha,d0=0):
     
     """
    
-    return np.abs(u_comp / u_ref - ((height-d0)/(z_ref-d0))**alpha)
+    return np.abs(u_comp / np.ones_like(u_comp)*u_ref - ((height-d0)/(z_ref-d0))**alpha)
 
 def calc_alpha(u_mean, heights, d0=0., BL_height=600., BL=[]):
     """ 
