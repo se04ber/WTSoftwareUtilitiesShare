@@ -325,7 +325,7 @@ def plot_turb_int(data,heights,yerr=0,component='I_u',var_lat='Y',lat=False,
     return ret
 
 def plot_fluxes(data, heights, yerr=0, component='v', var_lat='Y', lat=False,
-                xLabel=None,yLabel=None,showLegend=False, 
+                xLabel=None,yLabel=None,xAchse=None,yAchse=None,Labels=None,showLegend=False, cut=(None,None),
                 ax=None, sfc_height=60., **kwargs):
     """ Plots fluxes from data for their respective height with a 10% range of
     the low point mean. yerr specifies the uncertainty. Its default value is 0.
@@ -356,7 +356,21 @@ def plot_fluxes(data, heights, yerr=0, component='v', var_lat='Y', lat=False,
 
     data = np.asarray(data)
     heights = np.asarray(heights)
-    
+
+    #Choose if values should be colored differently
+    if (cut[0] or cut[1]) != None:
+        if cut[0] != None: 
+            data_inside        = data * np.where(heights <= cut[0], np.nan, True)
+            data_outside_lower = data * np.where(heights >= cut[0], np.nan, True)
+            heights_outside_lower = heights * np.where(heights >= cut[0], np.nan, True)
+
+        if cut[1] != None:
+            data_inside        = data * np.where(heights >= cut[1], np.nan, True)
+            data_outside_upper = data * np.where(heights <= cut[1], np.nan, True)
+            heights_outside_upper = heights * np.where(heights <= cut[1], np.nan, True)
+
+        data = data_inside
+
     ret = []
     for flux, height in zip(data, heights):
         if lat == False:
@@ -374,6 +388,20 @@ def plot_fluxes(data, heights, yerr=0, component='v', var_lat='Y', lat=False,
             labels= [r'wind tunnel flux']
             
         ret.append(l)
+
+    if (cut[0]!=None and cut[1]!=None):
+        if lat == False:
+            for flux, height in zip(data_outside_lower, heights_outside_lower):
+                l = ax.errorbar(flux,height,xerr=yerr,fmt='o',color='lightgrey',
+                                    ecolor="black",capsize=3.0,
+                                    **kwargs)
+            ret.append(l)
+            for flux, height in zip(data_outside_upper, heights_outside_upper):
+                ax.errorbar(flux,height,xerr=yerr,fmt='o',color='lightgrey',
+                                    ecolor="black",capsize=3.0,
+                                    **kwargs)
+            ret.append(l)
+
         
     ax.grid(True)
     if lat == False:
@@ -384,19 +412,29 @@ def plot_fluxes(data, heights, yerr=0, component='v', var_lat='Y', lat=False,
                    edgecolor='none', alpha=0.2,
                    label='10% range of low point mean')
         if(showLegend==True):
+            if(Labels!=None):
+                ax.legend([l],Labels,loc='best',fontsize=16)
             ax.legend([l],labels,loc='best',fontsize=16)
         ax.set_xlabel(xLabel if xLabel is not None else r'u'+ '\'' +component+'\'$\cdot U_{0}^{-2}\ (-)$')
         ax.set_ylabel(yLabel if yLabel is not None else 'z full-scale (m)') #fontsize=11
-    
+        ax.set_xlim(xAchse if xAchse is not None else (0.0,70.0))
+        ax.set_ylim(yAchse if xAchse is not None else (0.0,0.050))
+
+        """
         if np.nanmax(data)<0:
             ax.set_xlim([np.nanmin(data) * 1.1, 0])
         else:
             ax.set_xlim([np.nanmin(data) * 1.1, np.nanmax(data)*1.1])
+        """
+
     else:
         if(showLegend==True):
             ax.legend([l],labels,loc='best',fontsize=16)
         ax.set_xlabel(xLabel if xLabel is not None else r'u' + '\'' + component + '\' $\cdot u_{ref}^{-2}$ $(-)$')
         ax.set_ylabel(yLabel if yLabel is not None else var_lat+' full-scale (m)') #fontsize=11
+        ax.set_xlim(xAchse if xAchse is not None else (0.0,70.0))
+        ax.set_ylim(yAchse if xAchse is not None else (0.0,0.050))
+
     
  
     return ret
@@ -538,8 +576,6 @@ def plot_winddata(heights,components=["u"],mean_magnitude=None, u_mean=None, v_m
             
             ax.set_xlabel(xLabel if xLabel is not None else r'velocity $(-)$')
             ax.set_ylabel(yLabel if yLabel is not None else 'z full-scale (m)') #fontsize=11
-            ax.set_xlim(xAchse if xAchse is not None else (0.0,1.0))
-            ax.set_ylim(yAchse if xAchse is not None else (0.0,80.0))
             #ret.append(M + U + V)
 
         
@@ -742,7 +778,8 @@ def plot_lux(Lux, heights, err=None, var_lat='Y', lat=False, ref_path=None,manue
 
 def plot_spectra(f_sm, S_uu_sm, S_vv_sm, u_aliasing, v_aliasing, 
                  wind_comps, height, ref_path=None, 
-                 xLabel=None,yLabel=None, xAchse=None,yAchse=None, refRangeVis="Interval", comps2Plot=["u"],
+                 xLabel=None,yLabel=None,Labels=None,showLegend=True, xAchse=None,yAchse=None,
+                 refRangeVis="Interval", comps2Plot=["u"],
                  ax=None, **kwargs):
     """Plots spectra using INPUT with reference data.
 
@@ -773,6 +810,15 @@ def plot_spectra(f_sm, S_uu_sm, S_vv_sm, u_aliasing, v_aliasing,
     h4: axes object    
     
     """
+
+    if Labels==None:
+        Labels = []
+        Labels.append("Windkanalmessung")
+        for u in comps2Plot:
+            Labels.append(f"max {u}")
+            Labels.append(f"min {u}")
+
+
     if ax is None:
         ax = plt.gca()
     
@@ -787,16 +833,16 @@ def plot_spectra(f_sm, S_uu_sm, S_vv_sm, u_aliasing, v_aliasing,
 
     hs=[]
     if 'u' in wind_comps and 'u' in comps2Plot:
-        h1 = ax.loglog(f_sm[:u_aliasing],S_uu_sm[:u_aliasing],'ro',markersize=3,
-               label=r'Windkanalmessung $'+'{0}{0}'.format(wind_comps[0])+'$')
-        h2 = ax.loglog(f_sm[u_aliasing:],S_uu_sm[u_aliasing:],'ro',markersize=3,
+        h1 = ax.loglog(f_sm[:u_aliasing],S_uu_sm[:u_aliasing],"o",color="darkred",markersize=3)#,
+               #label=r'Windkanalmessung $'+'{0}{0}'.format(wind_comps[0])+'$')
+        h2 = ax.loglog(f_sm[u_aliasing:],S_uu_sm[u_aliasing:],"o", color="darkred",markersize=3,
                fillstyle='none')
         hs.append(h1)
         hs.append(h2)
     
     if 'v' in wind_comps and 'v' in comps2Plot:
-        h3 = ax.loglog(f_sm[:v_aliasing],S_vv_sm[:v_aliasing],'bs',markersize=3,
-              label='wind tunnel $'+'{0}{0}'.format(wind_comps[1])+'$')
+        h3 = ax.loglog(f_sm[:v_aliasing],S_vv_sm[:v_aliasing],'bs',markersize=3)#,
+              #label='wind tunnel $'+'{0}{0}'.format(wind_comps[1])+'$')
         h4 = ax.loglog(f_sm[v_aliasing:],S_vv_sm[v_aliasing:],'bs',markersize=3,
               fillstyle='none')
         hs.append(h3)
@@ -829,14 +875,14 @@ def plot_spectra(f_sm, S_uu_sm, S_vv_sm, u_aliasing, v_aliasing,
     
     elif refRangeVis=="maxMinLines":
         if 'u' in wind_comps and 'u' in comps2Plot:
-            ax.plot(ref_x,wt.calc_ref_spectra(ref_x)[0], color="grey",label="max u")
-            ax.plot(ref_x,wt.calc_ref_spectra(ref_x)[1],"--", color="grey",label="min u")
+            ax.plot(ref_x,wt.calc_ref_spectra(ref_x)[0],"-", color="grey")
+            ax.plot(ref_x,wt.calc_ref_spectra(ref_x)[1],"--", color="grey")
         if 'v' in wind_comps and 'v' in comps2Plot:
-            ax.plot(ref_x,wt.calc_ref_spectra(ref_x)[0], color="grey",label="max v")
-            ax.plot(ref_x,wt.calc_ref_spectra(ref_x)[1],"--", color="grey", label="min v")
+            ax.plot(ref_x,wt.calc_ref_spectra(ref_x)[0],"-", color="grey")
+            ax.plot(ref_x,wt.calc_ref_spectra(ref_x)[1],"--", color="grey")
         if 'w' in wind_comps and 'w' in comps2Plot:
-            ax.plot(ref_x,wt.calc_ref_spectra(ref_x)[0], color="grey",label="max w")
-            ax.plot(ref_x,wt.calc_ref_spectra(ref_x)[1],"--", color="grey", label="min w")
+            ax.plot(ref_x,wt.calc_ref_spectra(ref_x)[0],"-", color="grey")
+            ax.plot(ref_x,wt.calc_ref_spectra(ref_x)[1],"--", color="grey")
 
     # ax.set_xlim(xsmin,xsmax)
     #ax.set_xlim(10**-3.,2.*10.**2.)
@@ -847,7 +893,8 @@ def plot_spectra(f_sm, S_uu_sm, S_vv_sm, u_aliasing, v_aliasing,
     ax.set_ylim(yAchse if yAchse is not None else (10**-6,10))
     ax.set_xlabel(xLabel if xLabel is not None else r"$f\cdot z\cdot U^{-1}$")
     ax.set_ylabel(yLabel if yLabel is not None else r"$f\cdot S_{ij}\cdot (\sigma_i\sigma_j)^{-1}$")
-    ax.legend(loc='lower right',fontsize=11)
+    if(showLegend==True):
+        ax.legend(Labels,loc='lower right',fontsize=11)
     ax.grid(True)
     
    
@@ -893,6 +940,8 @@ def plot_spectra_nc(f_comp1_sm,f_comp2_sm, S_comp1_sm,S_comp2_sm,
     #    xsmax = np.nanmax(100,np.nanmax(f_sm[np.where(f_sm>0)]))
     ref_x = np.logspace(np.log10(xsmin), np.log10(xsmax), 50)
     ref_specs = wt.get_reference_spectra(height, ref_path)
+
+
 
 
     #f_sm = f_sm[:len(S_uu_sm)]
