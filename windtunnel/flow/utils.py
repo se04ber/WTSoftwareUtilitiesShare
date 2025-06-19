@@ -60,7 +60,7 @@ def get_turb_reference_values(component, ref_path=None):
         
     return slightly_rough, moderatly_rough, rough, very_rough
 
-def get_new_turb_reference_values(manuel=False,values_VDI={}):
+def get_new_turb_reference_values(manuel_VDI=False,values_VDI={}):
     """Calculates and returns the new VDI reference data for the turbulence intensity of
     component.
 
@@ -81,7 +81,7 @@ def get_new_turb_reference_values(manuel=False,values_VDI={}):
     Uref = 5
     z0 = np.array([0.00001, 0.005, 0.1, 0.5, 2])
 
-    if(manuel==False):
+    if(manuel_VDI==False):
         tm = 3600
         Ave = 0.18
         Av = 1
@@ -160,18 +160,23 @@ def get_lux_referencedata(ref_path=None):
 
 
 
-def get_new_lux_referencedata(manuel_VDI=True,values_VDI={}):
+def get_new_lux_referencedata(manuel_VDI=False,values_VDI={}):
     
     z0 = np.array([10.0, 1.0, 0.1, 0.01])
     z = np.arange(10, 305, 5)# np.arange(20, 305, 5)
-
 
     if(manuel_VDI==False):
         Gamma =1/(1.55-0.01/z0+0.64/(z0**0.5))
         B=3.12 + 19.92/(z0**0.5)-0.51/z0
     else:
-         for key,value in values_VDI.items():
-            globals()[key] = value
+        print("gets here")
+        for key,value in values_VDI.items():
+            vars()[key] = value
+            print(key)
+            print(value)
+            #print(B)
+    print(Gamma)
+    print(B)        
         
     
     Lux_10=np.vstack([z,B[0]*z**Gamma[0]])
