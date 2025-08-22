@@ -1,15 +1,323 @@
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
+import csv
+import os
+import glob
+import re
+from pathlib import Path
+
+from stl import mesh
 from matplotlib.patches import Polygon
 from matplotlib.colors import LinearSegmentedColormap, Normalize
 
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-from stl import mesh
-import csv
-import re
 
+
+
+def load_avg_file(filepath):
+    """
+    Load and parse an avg file to extract metadata and concentration data.
+    
+    Args:
+        filepath (str): Path to the avg file
+        
+    Returns:
+        dict: Parsed data containing metadata and concentration values
+    """
+    try:
+        with open(filepath, 'r', encoding='utf-8') as file:
+            content = file.read()
+        
+        # Extract filename from path and clean it
+        full_filename = Path(filepath).name
+        # Extract only the part starting with _avg_ and ending with .txt.ts#0
+        filename_match = re.search(r'(_avg_.*?\.txt\.ts#\d+)', full_filename)
+        filename = filename_match.group(1) if filename_match else full_filename
+        
+        # Parse metadata from header
+        metadata = {}
+        
+        # Extract geometric scale
+        scale_match = re.search(r'geometric scale: 1:(\d+\.?\d*)', content)
+        if scale_match:
+            metadata['geometric_scale'] = float(scale_match.group(1))
+        
+        # Extract measurement positions (in mm)
+        x_match = re.search(r'x \(measurement relativ to source\): ([\d\.-]+) \[mm\]', content)
+        y_match = re.search(r'y \(measurement relativ to source\): ([\d\.-]+) \[mm\]', content)
+        z_match = re.search(r'z \(measurement relativ to source\): ([\d\.-]+) \[mm\]', content)
+        
+        if x_match and y_match and z_match:
+            # Convert to full scale (mm to m, then scale up)
+            scale = metadata.get('geometric_scale', 200.0)
+            metadata['x_fs'] = float(x_match.group(1)) / 1000.0 * scale  # mm to m, then scale
+            metadata['y_fs'] = float(y_match.group(1)) / 1000.0 * scale
+            metadata['z_fs'] = float(z_match.group(1)) / 1000.0 * scale
+        
+        # Find the data line (last non-comment line)
+        lines = content.strip().split('\n')
+        data_line = None
+        for line in reversed(lines):
+            if line.strip() and not line.strip().startswith('#'):
+                data_line = line.strip()
+                break
+        
+        if data_line:
+            # Parse concentration data
+            values = data_line.split()
+            if len(values) >= 3:
+                metadata['c_star'] = float(values[0])
+                metadata['net_concentration'] = float(values[1])
+                metadata['full_scale_concentration'] = float(values[2])
+        
+        metadata['filename'] = filename
+        return metadata
+        
+    except Exception as e:
+        print(f"Error reading {filepath}: {e}")
+        return None
+
+def load_stats_file(filepath):
+    """
+    Load and parse a stats file to extract metadata and statistical concentration data.
+    
+    Args:
+        filepath (str): Path to the stats file
+        
+    Returns:
+        dict: Parsed data containing metadata and statistical values
+    """
+    try:
+        with open(filepath, 'r', encoding='utf-8') as file:
+            content = file.read()
+        
+        # Extract filename from path and clean it
+        full_filename = Path(filepath).name
+        # Extract only the part starting with _stats_ and ending with .txt.ts#0
+        filename_match = re.search(r'(_stats_.*?\.txt\.ts#\d+)', full_filename)
+        filename = filename_match.group(1) if filename_match else full_filename
+        
+        # Parse metadata from header (same as avg file)
+        metadata = {}
+        
+        # Extract geometric scale
+        scale_match = re.search(r'geometric scale: 1:(\d+\.?\d*)', content)
+        if scale_match:
+            metadata['geometric_scale'] = float(scale_match.group(1))
+        
+        # Extract measurement positions (in mm)
+        x_match = re.search(r'x \(measurement relativ to source\): ([\d\.-]+) \[mm\]', content)
+        y_match = re.search(r'y \(measurement relativ to source\): ([\d\.-]+) \[mm\]', content)
+        z_match = re.search(r'z \(measurement relativ to source\): ([\d\.-]+) \[mm\]', content)
+        
+        if x_match and y_match and z_match:
+            # Convert to full scale (mm to m, then scale up)
+            scale = metadata.get('geometric_scale', 200.0)
+            metadata['x_fs'] = float(x_match.group(1)) / 1000.0 * scale  # mm to m, then scale
+            metadata['y_fs'] = float(y_match.group(1)) / 1000.0 * scale
+            metadata['z_fs'] = float(z_match.group(1)) / 1000.0 * scale
+        
+        # Find the statistical data line (should be the first non-comment line after header)
+        lines = content.strip().split('\n')
+        data_line = None
+        for line in lines:
+            if line.strip() and not line.strip().startswith('#'):
+                data_line = line.strip()
+                break
+        
+        if data_line:
+            # Parse statistical data - should have 12 values
+            # Order: means(3), percentiles95(3), percentiles5(3), peak2mean(3)
+            values = data_line.split()
+            if len(values) >= 12:
+                # Means
+                metadata['c_star'] = float(values[0])
+                metadata['net_concentration'] = float(values[1])
+                metadata['full_scale_concentration'] = float(values[2])
+                
+                # 95th percentiles
+                metadata['percentiles95_c_star'] = float(values[3])
+                metadata['percentiles95_net_concentration'] = float(values[4])
+                metadata['percentiles95_full_scale_concentration'] = float(values[5])
+                
+                # 5th percentiles
+                metadata['percentiles5_c_star'] = float(values[6])
+                metadata['percentiles5_net_concentration'] = float(values[7])
+                metadata['percentiles5_full_scale_concentration'] = float(values[8])
+                
+                # Peak2Mean ratios
+                metadata['peak2mean_c_star'] = float(values[9])
+                metadata['peak2mean_net_concentration'] = float(values[10])
+                metadata['peak2mean_full_scale_concentration'] = float(values[11])
+        
+        metadata['filename'] = filename
+        return metadata
+        
+    except Exception as e:
+        print(f"Error reading {filepath}: {e}")
+        return None
+
+def combine_to_csv(file_names, base_path, file_type='avg', output_filename='combined_data.csv'):
+    """
+    Combine specific avg or stats files into a single CSV file.
+    
+    Args:
+        file_names (list): Array of specific filenames to process
+        base_path (str): Base directory path containing the files
+        file_type (str): Type of files to process ('avg' or 'stats')
+        output_filename (str): Name of the output CSV file
+        
+    Returns:
+        pd.DataFrame: Combined data as a pandas DataFrame
+    """
+    
+    # Define subdirectory and load function based on file type
+    if file_type.lower() == 'avg':
+        #subdirectory = 'Point_Data_avg'
+        load_function = load_avg_file
+    elif file_type.lower() == 'stats':
+        #subdirectory = 'Point_Data_stats'
+        load_function = load_stats_file
+    else:
+        raise ValueError("file_type must be 'avg' or 'stats'")
+    
+    # Build full file paths from the provided filenames
+    file_paths = []
+    for filename in file_names:
+        # Search for the file in the subdirectory structure
+        search_pattern = os.path.join(base_path, '**', filename)
+        matches = glob.glob(search_pattern, recursive=True)
+        
+        if matches:
+            file_paths.extend(matches)
+        else:
+            print(f"Warning: File '{filename}' not found in {base_path}{filename}")
+    
+    if not file_paths:
+        print(f"No valid {file_type} files found from the provided list")
+        return None
+    
+    print(f"Processing {len(file_paths)} {file_type} files")
+    
+    # Process all files
+    all_data = []
+    for filepath in file_paths:
+        print(f"Processing: {filepath}")
+        data = load_function(filepath)
+        if data:
+            all_data.append(data)
+    
+    if not all_data:
+        print("No valid data found in any files")
+        return None
+    
+    # Create DataFrame
+    df = pd.DataFrame(all_data)
+    
+    # Define column order based on file type
+    if file_type.lower() == 'avg':
+        columns = [
+            'filename', 'x_fs', 'y_fs', 'z_fs',
+            'c_star', 'net_concentration', 'full_scale_concentration'
+        ]
+        # Rename columns to match desired format
+        column_mapping = {
+            'filename': 'Filename',
+            'x_fs': 'X_fs [m]',
+            'y_fs': 'Y_fs [m]',
+            'z_fs': 'Z_fs [m]',
+            'c_star': 'Avg_c_star [-]',
+            'net_concentration': 'Avg_net_concentration [ppmV]',
+            'full_scale_concentration': 'Avg_full_scale_concentration [ppmV]'
+        }
+    else:  # stats
+        columns = [
+            'filename', 'x_fs', 'y_fs', 'z_fs',
+            'c_star', 'net_concentration', 'full_scale_concentration',
+            'percentiles95_c_star', 'percentiles95_net_concentration', 'percentiles95_full_scale_concentration',
+            'peak2mean_c_star', 'peak2mean_net_concentration', 'peak2mean_full_scale_concentration'
+        ]
+        # Rename columns to match desired format
+        column_mapping = {
+            'filename': 'Filename',
+            'x_fs': 'X_fs [m]',
+            'y_fs': 'Y_fs [m]',
+            'z_fs': 'Z_fs [m]',
+            'c_star': 'Avg_c_star [-]',
+            'net_concentration': 'Avg_net_concentration [ppmV]',
+            'full_scale_concentration': 'Avg_full_scale_concentration [ppmV]',
+            'percentiles95_c_star': 'Percentiles 95_cstar',
+            'percentiles95_net_concentration': 'Percentiles 95_net_concentration',
+            'percentiles95_full_scale_concentration': 'percentiles95_full_scale_concentration',
+            'peak2mean_c_star': 'Peak2MeanRatio_cstar',
+            'peak2mean_net_concentration': 'Peak2MeanRatio_net_conc',
+            'peak2mean_full_scale_concentration': 'Peak2MeanRatio_full_scale_conc'
+        }
+    
+    # Select and rename columns
+    df = df[columns].rename(columns=column_mapping)
+    
+    # Fill NaN values with 0.0
+    df = df.fillna(0.0)
+    
+    # Save to CSV
+    df.to_csv(output_filename, index=False)
+    print(f"Data saved to {output_filename}")
+    
+    return df
+
+
+def load_csv(file_path):
+    """
+    Load data from a CSV file returns points and values lists for printing/or further analysis.
+    
+    Args:
+        filename (str): Path to the CSV file
+        
+    Returns:
+        tuple: (points, values) where:
+            - points is a list of (x,y,z) tuples
+            - values is a list of concentration values
+    """
+    points = []
+    values = []
+    
+    with open(file_path, 'r') as file:
+        # Skip the header line
+        next(file)
+        csv_reader = csv.reader(file)
+        for row in csv_reader:
+            # Check if we have enough elements in the row
+            if len(row) == 4:
+                x = float(row[0])
+                y = float(row[1])
+                z = float(row[2])
+                c_star = float(row[3])
+                
+            elif len(row) > 4:
+                #try:
+                # Parse data, assuming the format matches X_fs [m],Y_fs [m],Z_fs [m],C* [-]
+                file = row[0]
+                x = float(row[1])
+                y = float(row[2])
+                z = float(row[3])
+                c_star = float(row[4])
+                if len(row) >=6:
+                    c_net = float(row[5])
+                    if len(row) >=7:
+                        c_fs = float(row[6])
+                
+            # Add to our lists
+            points.append((x, y, z))
+            values.append(c_star)
+                #except ValueError:
+                #    # Skip rows that can't be converted to float
+                #    print(f"Skipping invalid row: {row}")
+    
+    return points, values
 
 #Functions for plotting locations of measurements in a CAD loaded background  
 
@@ -1139,104 +1447,41 @@ if __name__ == "__main__":
     
     
 
-def load_avg_file(file_path):
-    """
-    Load concentration measurement data from a specifically formatted text file
-    into a dictionary.
+def load_combined_data_from_csv(file_path):
+    """Load combined data from CSV file"""
+    filenames = []
+    points = []
+    avg_data = {}
+    stats_data = {}
     
-    Args:
-        file_path (str): Path to the text file
-        
-    Returns:
-        dict: Dictionary containing metadata and concentration data
-    """
- 
     with open(file_path, 'r') as file:
-        lines = file.readlines()
-    result = {
-        'metadata': {},
-        'data': []
-    }
-    
-    # Extract metadata and find where data begins
-    data_section = False
-    column_names = None
-    for line in lines:
-        line = line.strip()
-        # Skip empty lines
-        if not line:
-            continue
+        reader = csv.DictReader(file)
         
-        # Process metadata lines
-        if line.startswith('#'):
-            # Skip general header
-            if 'General concentration' in line:
-                continue
-            # Extract column headers
-            if line.startswith('# "'):
-                column_names = [name.strip('"') for name in line[2:].split('" "')]
-                data_section = True
-                continue
-            # Process other metadata
-            line = line[1:].strip()  # Remove the '#' prefix
-            
-            # Handle Variables line which contains multiple key-value pairs
-            if line.startswith('Variables:'):
-                variables_str = line[len('Variables:'):].strip()
-                var_pattern = re.compile(r'([^:,]+):\s*([^,\[]+)(?:\s*\[([^\]]+)\])?')
-                for match in var_pattern.finditer(variables_str):
-                    key, value, unit = match.groups()
-                    key = key.strip()
-                    value = value.strip()
-                    
-                    # Convert value to float if possible
-                    try:
-                        value = float(value)
-                    except ValueError:
-                        pass
-                    
-                    if unit:
-                        result['metadata'][key] = {'value': value, 'unit': f'[{unit}]'}
-                    else:
-                        result['metadata'][key] = value
-            
-            # Handle other metadata lines with key-value pairs
-            elif ':' in line:
-                key, value = line.split(':', 1)
-                value = value.strip()
-                key = key.strip()
+        for row in reader:
+            try:
+                filenames.append(row['Filename'])
                 
-                # Extract unit if available
-                unit_match = re.search(r'\[(.*?)\]', value)
-                if unit_match:
-                    unit = unit_match.group(0)
-                    value_only = value[:value.find('[')].strip()
-                    
-                    # Convert value to float if possible
-                    try:
-                        value_only = float(value_only)
-                    except ValueError:
-                        pass
+                x = float(row['X_fs [m]'])
+                y = float(row['Y_fs [m]'])
+                z = float(row['Z_fs [m]'])
+                points.append((x, y, z))
+                
+                for key, value in row.items():
+                    if key.startswith('Avg_'):
+                        param_name = key[4:]
+                        if param_name not in avg_data:
+                            avg_data[param_name] = []
+                        avg_data[param_name].append(float(value))
+                    elif key.startswith('Stats_'):
+                        param_name = key[6:]
+                        if param_name not in stats_data:
+                            stats_data[param_name] = []
+                        stats_data[param_name].append(float(value))
                         
-                    result['metadata'][key] = {'value': value_only, 'unit': unit}
-                else:
-                    result['metadata'][key] = value
-        
-        # Process data rows
-        elif data_section and column_names:
-            values = line.split()
-            # Only process if we have the right number of values
-            if len(values) == len(column_names):
-                row_data = {}
-                for i, col_name in enumerate(column_names):
-                    try:
-                        row_data[col_name] = float(values[i])
-                    except ValueError:
-                        row_data[col_name] = values[i]
-                        
-                result['data'].append(row_data)
-    
-    return result
+            except (ValueError, KeyError) as e:
+                print(f"Skipping invalid row: {e}")
+                
+    return filenames, points, avg_data, stats_data
 
 
 def load_data_from_csv(file_path):

@@ -376,6 +376,10 @@ for name in namelist:
             I_v.append(turb_data[name][file][1])
             fluxes.append(turb_data[name][file][2])
             lux.append(lux_data[name][file])
+
+    from flow.stats import calc_alpha  
+    calc_alpha(u_mean, heights,d0=0.,BL_height=600.,BL=[])
+
     if save_data:
 
         wt.check_directory(outdata_path)

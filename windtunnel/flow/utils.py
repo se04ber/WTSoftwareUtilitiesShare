@@ -186,6 +186,9 @@ def get_new_lux_referencedata(manuel_VDI=False,values_VDI={}):
     
     return Lux_10, Lux_1, Lux_01, Lux_001
 
+
+
+
 def find_nearest(array, value):
     """ Finds nearest element of array to value.
 

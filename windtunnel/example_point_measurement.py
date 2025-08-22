@@ -21,7 +21,7 @@ csv_file='notthere.csv' #'ambient_conditions.csv'
 # Name of your measurement
 #namelist = ['Q2_170_P09.txt.ts#0']
 namelist = ['BFS_BD3_MP01_000_01.ts#0','BFS_BD3_MP01_000_02.ts#0']
-            
+        
 
 #Variables and Parameters if no ambient_conditions.csv file overgiven
 
@@ -174,6 +174,27 @@ for name in namelist:
         # conc_ts[name][file].save2file_ms(file,out_dir=path+'Puff_Data\\'+name[:name.find('.')]+'\\')
         # Save average values. Requires to_full_scale()
         # conc_ts[name][file].save2file_avg(file,out_dir=path+'Puff_Data\\'+name[:name.find('.')]+'\\')
+
+
+
+
+
+from windtunnel.concentration.utils import batch_combine_data, load_combined_data_from_csv
+
+path_dir = "/home/sabrina/Desktop/Schreibtisch/Arbeit_2025/WTSoftwareUtilitiesShare"
+output_path = f"{path_dir}/ExampleData/Results/"
+
+file_path = "/home/sabrina/Desktop/Schreibtisch/Arbeit_2025/windtunnel_software/Data/"
+file_names = [
+    "Point_Data_stats\BFS_BD3_MP01_00\_stats_BFS_BD3_MP01_000_01.ts#0",
+    "Point_Data_stats\BFS_BD3_MP01_00\_stats_BFS_BD3_MP01_000_02.ts#0"
+]
+batch_combine_data(file_path, file_names, output_path, 
+                  folder_combined="stats_only", 
+                  output_filename="stats_measurements.csv",
+                  file_type="stats")
+
+
 
 #Try fluctuations analysis
 conc_ts[name][file].analyze_concentration_fluctuations()

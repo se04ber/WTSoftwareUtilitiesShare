@@ -46,6 +46,8 @@ class PointConcentration(pd.DataFrame):
         self['slow_FID'] = pd.Series(data=slow_FID)  #[ppmV]
         self['fast_FID'] = pd.Series(data=fast_FID)  #[ppmV]
 
+        self.config_name = None
+
         self.x = None         #[mm]
         self.y = None         #[mm]
         self.z = None         #[mm]
@@ -180,7 +182,7 @@ class PointConcentration(pd.DataFrame):
            #Calculate for for use relevant entdimensionalised variables
            self.calc_non_dimensional_time()
            self.calc_c_star()	
-           self.calc_non_dimensional_flow_rate()		   
+           #self.calc_non_dimensional_flow_rate()		   
 
            self.time = self.non_dimensional_time
            self.net_concentration = self.c_star
@@ -217,7 +219,7 @@ class PointConcentration(pd.DataFrame):
 
         #list of all variables output by read_ambient_conditions fuction.  
         necessary_keys={'x_source','y_source','z_source','x_measure','y_measure','z_measure','pressure','temperature','calibration_curve','mass_flow_controller','calibration_factor', \
-        'scaling_factor','scale','ref_length','ref_height','gas_name','mol_weight','gas_factor','full_scale_wtref','full_scale_flow_rate','full_scale_temp','full_scale_pressure'}
+        'scaling_factor','scale','ref_length','ref_height','gas_name','mol_weight','gas_factor','full_scale_wtref','full_scale_flow_rate','full_scale_temp','full_scale_pressure','config_name'}
         if not all(name2 in ambient_conditions[name] for name2 in necessary_keys):
            print('Error: csv file does not contain all necessary ambient conditions data. Check to make sure that csv file to make sure that \
                 the csv file contains all necessary data and is properly formatted. Resorting to input data in example_puff_measurement.py')
@@ -252,14 +254,15 @@ class PointConcentration(pd.DataFrame):
         full_scale_flow_rate=None if ambient_conditions[name]['full_scale_flow_rate'] =='None' else np.float64(ambient_conditions[name]['full_scale_flow_rate'])	
         full_scale_temp=None if ambient_conditions[name]['full_scale_temp'] =='None' else np.float64(ambient_conditions[name]['full_scale_temp'])
         full_scale_pressure=None if ambient_conditions[name]['full_scale_pressure'] =='None' else np.float64(ambient_conditions[name]['full_scale_pressure'])	
+        config_name=None if ambient_conditions[name]['config_name'] =='None' else ambient_conditions[name]['config_name']
 		
 
         return x_source,y_source,z_source,x_measure,y_measure,z_measure,pressure,temperature,calibration_curve,mass_flow_controller,\
         calibration_factor, scaling_factor,scale,ref_length,ref_height,gas_name,mol_weight,\
-        gas_factor,full_scale_wtref,full_scale_flow_rate,full_scale_temp,full_scale_pressure							
+        gas_factor,full_scale_wtref,full_scale_flow_rate,full_scale_temp,full_scale_pressure, config_name							
 
     def ambient_conditions(self, x_source, y_source, z_source, x_measure,y_measure,z_measure,pressure, temperature, calibration_curve,
-                           mass_flow_controller, calibration_factor=0):
+                           mass_flow_controller, calibration_factor=0,config_name="-"):
         """ Collect ambient conditions during measurement. pressure in [Pa],
         temperature in [°C]. """
        
@@ -283,6 +286,7 @@ class PointConcentration(pd.DataFrame):
         self.calibration_curve = calibration_curve
         self.calibration_factor = calibration_factor
         self.mass_flow_controller = mass_flow_controller
+        self.config_name = config_name
 
     def scaling_information(self, scaling_factor, scale, ref_length, ref_height):
         """ Collect data necessary to scale the results. unit: [m], where
