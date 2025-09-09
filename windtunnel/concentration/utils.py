@@ -39,7 +39,6 @@ def load_avg_file(filepath):
         
         # Parse metadata from header
         metadata = {}
-        
         # Extract geometric scale
         scale_match = re.search(r'geometric scale: 1:(\d+\.?\d*)', content)
         if scale_match:
@@ -49,13 +48,16 @@ def load_avg_file(filepath):
         x_match = re.search(r'x \(measurement relativ to source\): ([\d\.-]+) \[mm\]', content)
         y_match = re.search(r'y \(measurement relativ to source\): ([\d\.-]+) \[mm\]', content)
         z_match = re.search(r'z \(measurement relativ to source\): ([\d\.-]+) \[mm\]', content)
-        
         if x_match and y_match and z_match:
             # Convert to full scale (mm to m, then scale up)
             scale = metadata.get('geometric_scale', 200.0)
             metadata['x_fs'] = float(x_match.group(1)) / 1000.0 * scale  # mm to m, then scale
             metadata['y_fs'] = float(y_match.group(1)) / 1000.0 * scale
             metadata['z_fs'] = float(z_match.group(1)) / 1000.0 * scale
+
+        #wtref = re.search(r'\(wtref): ([\d\.-]+) \[m/s\]', content)
+        wtref_fs = re.search(r'full scale wtref: ([\d\.-]+)\[m/s\]', content)
+        metadata['wtref_fs']  = float(wtref_fs.group(1))
         
         # Find the data line (last non-comment line)
         lines = content.strip().split('\n')
@@ -102,7 +104,6 @@ def load_stats_file(filepath):
         
         # Parse metadata from header (same as avg file)
         metadata = {}
-        
         # Extract geometric scale
         scale_match = re.search(r'geometric scale: 1:(\d+\.?\d*)', content)
         if scale_match:
@@ -112,13 +113,16 @@ def load_stats_file(filepath):
         x_match = re.search(r'x \(measurement relativ to source\): ([\d\.-]+) \[mm\]', content)
         y_match = re.search(r'y \(measurement relativ to source\): ([\d\.-]+) \[mm\]', content)
         z_match = re.search(r'z \(measurement relativ to source\): ([\d\.-]+) \[mm\]', content)
-        
         if x_match and y_match and z_match:
             # Convert to full scale (mm to m, then scale up)
             scale = metadata.get('geometric_scale', 200.0)
             metadata['x_fs'] = float(x_match.group(1)) / 1000.0 * scale  # mm to m, then scale
             metadata['y_fs'] = float(y_match.group(1)) / 1000.0 * scale
             metadata['z_fs'] = float(z_match.group(1)) / 1000.0 * scale
+        
+        #wtref = re.search(r'\(wtref): ([\d\.-]+) \[m/s\]', content)
+        wtref_fs = re.search(r'full scale wtref: ([\d\.-]+)\[m/s\]', content)
+        metadata['wtref_fs']  = float(wtref_fs.group(1))
         
         # Find the statistical data line (should be the first non-comment line after header)
         lines = content.strip().split('\n')
@@ -220,7 +224,7 @@ def combine_to_csv(file_names, base_path, file_type='avg', output_filename='comb
     # Define column order based on file type
     if file_type.lower() == 'avg':
         columns = [
-            'filename', 'x_fs', 'y_fs', 'z_fs',
+            'filename', 'x_fs', 'y_fs', 'z_fs', 'wtref_fs',
             'c_star', 'net_concentration', 'full_scale_concentration'
         ]
         # Rename columns to match desired format
@@ -229,13 +233,14 @@ def combine_to_csv(file_names, base_path, file_type='avg', output_filename='comb
             'x_fs': 'X_fs [m]',
             'y_fs': 'Y_fs [m]',
             'z_fs': 'Z_fs [m]',
+            'wtref_fs': 'Wtref_fs [m/s]',
             'c_star': 'Avg_c_star [-]',
             'net_concentration': 'Avg_net_concentration [ppmV]',
             'full_scale_concentration': 'Avg_full_scale_concentration [ppmV]'
         }
     else:  # stats
         columns = [
-            'filename', 'x_fs', 'y_fs', 'z_fs',
+            'filename', 'x_fs', 'y_fs', 'z_fs', 'wtref_fs',
             'c_star', 'net_concentration', 'full_scale_concentration',
             'percentiles95_c_star', 'percentiles95_net_concentration', 'percentiles95_full_scale_concentration',
             'peak2mean_c_star', 'peak2mean_net_concentration', 'peak2mean_full_scale_concentration'
@@ -246,6 +251,7 @@ def combine_to_csv(file_names, base_path, file_type='avg', output_filename='comb
             'x_fs': 'X_fs [m]',
             'y_fs': 'Y_fs [m]',
             'z_fs': 'Z_fs [m]',
+            'wtref_fs': 'Wtref_fs [m/s]',
             'c_star': 'Avg_c_star [-]',
             'net_concentration': 'Avg_net_concentration [ppmV]',
             'full_scale_concentration': 'Avg_full_scale_concentration [ppmV]',
@@ -270,54 +276,45 @@ def combine_to_csv(file_names, base_path, file_type='avg', output_filename='comb
     return df
 
 
-def load_csv(file_path):
+from collections import defaultdict
+def load_csv(file_path, columns=["X_fs [m]", "Y_fs [m]", "Z_fs [m]","Avg_net_concentration [ppmV]"], combineCoordinates=True):
     """
-    Load data from a CSV file returns points and values lists for printing/or further analysis.
+    Load data from CSV file and return dict of arrays with column names.
     
     Args:
-        filename (str): Path to the CSV file
-        
+        file_path (str): Path to the CSV file
+        columns (list): Column names to extract (None = all columns)
+        combineCoordinates (bool): Combine x,y,z columns into list of tuples
+    
     Returns:
-        tuple: (points, values) where:
-            - points is a list of (x,y,z) tuples
-            - values is a list of concentration values
+        dict: Column names as keys, data arrays as values
     """
-    points = []
-    values = []
+    data = defaultdict(list)
+    coord_keys = ["X_fs [m]", "Y_fs [m]", "Z_fs [m]"]
     
     with open(file_path, 'r') as file:
-        # Skip the header line
-        next(file)
-        csv_reader = csv.reader(file)
-        for row in csv_reader:
-            # Check if we have enough elements in the row
-            if len(row) == 4:
-                x = float(row[0])
-                y = float(row[1])
-                z = float(row[2])
-                c_star = float(row[3])
-                
-            elif len(row) > 4:
-                #try:
-                # Parse data, assuming the format matches X_fs [m],Y_fs [m],Z_fs [m],C* [-]
-                file = row[0]
-                x = float(row[1])
-                y = float(row[2])
-                z = float(row[3])
-                c_star = float(row[4])
-                if len(row) >=6:
-                    c_net = float(row[5])
-                    if len(row) >=7:
-                        c_fs = float(row[6])
-                
-            # Add to our lists
-            points.append((x, y, z))
-            values.append(c_star)
-                #except ValueError:
-                #    # Skip rows that can't be converted to float
-                #    print(f"Skipping invalid row: {row}")
+        reader = csv.DictReader(file)
+        headers = reader.fieldnames
+        
+        if columns is None:
+            columns = headers
+        
+        for row in reader:
+            for col in columns:
+                if col in row and row[col]:
+                    try:
+                        data[col].append(float(row[col]))
+                    except ValueError:
+                        data[col].append(row[col])
     
-    return points, values
+    if combineCoordinates and all(key in data for key in coord_keys):
+        coords = list(zip(data[coord_keys[0]], data[coord_keys[1]], data[coord_keys[2]]))
+        data['coordinates'] = coords
+        for key in coord_keys:
+            del data[key]
+    
+    return data
+
 
 #Functions for plotting locations of measurements in a CAD loaded background  
 

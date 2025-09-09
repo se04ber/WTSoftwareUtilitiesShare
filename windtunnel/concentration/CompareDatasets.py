@@ -12,10 +12,44 @@ import scipy.stats as sc
 import scipy.signal as scSignal
 from typing import Optional
 from sklearn.metrics import mean_squared_error
+import seaborn as sns
    
 
 
 #File for all functions comparing two Objects 
+
+
+
+#Function to quickly visualise all time series with corresponding mean line and
+#basic statistic quantities (mean,std,quantile)
+def plot_timeseries_with_stats(PointConcTsArray, labels, color,dimensionless=True):
+    fig, axes = plt.subplots(len(PointConcTsArray), 1, figsize=(10, 8), sharex=True)
+    for i,ts_data in enumerate(PointConcTsArray):
+        ax = axes[i]
+        title = ts_data.config_name
+        if(dimensionless==True):
+            series = ts_data.c_star
+        else:
+            series = ts_data.net_concentration    
+        label=labels[i]
+        mean_val = np.mean(series)
+        std_val = np.std(series)
+        p95_val = np.percentile(series, 95)
+        
+        ax.plot(series, color=color)
+        # Mittelwertlinie
+        ax.axhline(mean_val, color="red", linestyle="--", label=f"{label} Mean")
+        # ±1 Std.-Bereich
+        ax.fill_between(range(len(series)), mean_val - std_val, mean_val + std_val, 
+                        color=color, alpha=0.2, label="±1 Std.")
+        # Textbox mit Stats
+        textstr = f"Mean = {mean_val:.4f}\nStd = {std_val:.4f}\nP95 = {p95_val:.4f}"
+        ax.text(0.02, 0.98, textstr, transform=ax.transAxes, fontsize=10,
+                verticalalignment='top', bbox=dict(boxstyle="round", facecolor="white", alpha=0.8))
+        ax.set_xlabel("time [s]")
+        ax.set_ylabel("c [-]")
+        ax.set_title(title)
+        ax.legend(loc="upper right")
 
 
 def compare_point_concentrations(PointConcTsArray, labels=None, max_lag=50,functionsForOverview=["all"],dimensionless="False",errorConc=5.0, errorType="absolute"):
@@ -660,7 +694,7 @@ def compare_point_concentrations_3(PointConcTsArray, functionsForOverview=None, 
     
     # Determine which plots to show based on functionsForOverview
     all_plot_types = [
-        "Histogram", "Pdf", "Cdf", "Means", "BoxPlot", 
+        "Histogram", "ViolinPlot", "Pdf", "Cdf", "Means", "BoxPlot", 
         "PowerDensity", "QuantilPlot", "ScatterPlot", "ResidualPlot", "Autocorrelation",
     ]
     
@@ -701,6 +735,7 @@ def compare_point_concentrations_3(PointConcTsArray, functionsForOverview=None, 
     
     # Histogram plot function
     def create_histogram(ax):
+        sns.set_style("whitegrid")
         for i in range(num_datasets):
             ax.hist(pc_values[i], bins='auto', alpha=0.7/num_datasets, label=labels[i])
         ax.set_title('Distribution Comparison')
@@ -712,6 +747,7 @@ def compare_point_concentrations_3(PointConcTsArray, functionsForOverview=None, 
     
     # PDF plot function
     def create_pdf(ax):
+        sns.set_style("whitegrid")
         from scipy.stats import gaussian_kde
         x = np.linspace(min_val, max_val, 200)
         for i in range(num_datasets):
@@ -726,6 +762,7 @@ def compare_point_concentrations_3(PointConcTsArray, functionsForOverview=None, 
     
     # CDF plot function
     def create_cdf(ax):
+        sns.set_style("whitegrid")
         for i in range(num_datasets):
             sorted_values = np.sort(pc_values[i])
             yvals = np.arange(1, len(sorted_values) + 1) / len(sorted_values)
@@ -739,6 +776,7 @@ def compare_point_concentrations_3(PointConcTsArray, functionsForOverview=None, 
     
     # Mean comparison plot function
     def create_means(ax):
+        sns.set_style("whitegrid")
         x_positions = np.arange(1, num_datasets + 1)
         means = stats_rows[0][1:]
         print(x_positions)
@@ -754,6 +792,7 @@ def compare_point_concentrations_3(PointConcTsArray, functionsForOverview=None, 
     
     # Box plot function
     def create_boxplot(ax):
+        sns.set_style("whitegrid")
         ax.boxplot(pc_values, labels=labels)
         ax.set_title('Box Plot Comparison')
         ax.set_ylabel('Concentration')
@@ -761,9 +800,21 @@ def compare_point_concentrations_3(PointConcTsArray, functionsForOverview=None, 
         if num_datasets > 3:
             plt.setp(ax.get_xticklabels(), rotation=45)
     plot_functions["BoxPlot"] = create_boxplot
+
+    def create_violinplot(ax):
+        sns.set_style("whitegrid")
+        ax.violinplot(pc_values,showmeans=True, showextrema=True,quantiles=[[0.1, 0.95] for _ in pc_values])
+        ax.set_title('Violin Plot Comparison')
+        ax.set_ylabel('Concentration')
+        ax.grid(True)
+        if num_datasets > 3:
+            plt.setp(ax.get_xticklabels(), rotation=45)
+    plot_functions["ViolinPlot"] = create_violinplot
+    
     
     # Q-Q plot function
     def create_quantilplot(ax):
+        sns.set_style("whitegrid")
         if num_datasets > 1:
             sc.probplot(pc_values[1], dist="norm", plot=ax)
             ax.set_title(f'Q-Q Plot - {labels[1]}')
@@ -777,6 +828,7 @@ def compare_point_concentrations_3(PointConcTsArray, functionsForOverview=None, 
     
     # Scatter plot function
     def create_scatterplot(ax):
+        sns.set_style("whitegrid")
         if num_datasets > 1:
             for i in range(1, min(4, num_datasets)):  # Limit to 3 comparisons to avoid overcrowding
                 ax.scatter(pc_values[0], pc_values[i], alpha=0.5/num_datasets, 
@@ -798,6 +850,7 @@ def compare_point_concentrations_3(PointConcTsArray, functionsForOverview=None, 
     
     # Residual plot function
     def create_residualplot(ax):
+        sns.set_style("whitegrid")
         if num_datasets > 1:
             x = np.arange(len(pc_values[0]))
             for i in range(1, min(4, num_datasets)):  # Limit to 3 comparisons
@@ -862,6 +915,7 @@ def compare_point_concentrations_3(PointConcTsArray, functionsForOverview=None, 
 
 
     def create_powerDensityPlot(ax): 
+        sns.set_style("whitegrid")
         times = []
         plot=True
         for i in range(num_datasets):
@@ -948,6 +1002,7 @@ def compare_point_concentrations_3(PointConcTsArray, functionsForOverview=None, 
 
  # Histogram plot function
 def create_histogram(PointConcTsArray,dimensionless="False",labels=None,xLabel=None,yLabel=None,xAchse=None,yAchse=None):
+    sns.set_style("whitegrid")
     num_datasets = len(PointConcTsArray)
     pc_values,wtref_values,labels,max_val,min_val = get_arrays_for_plotting(PointConcTsArray,labels=labels, dimensionless=dimensionless)
 
@@ -964,6 +1019,7 @@ def create_histogram(PointConcTsArray,dimensionless="False",labels=None,xLabel=N
     
     # PDF plot function
 def create_pdf(PointConcTsArray,dimensionless="False",labels=None,xLabel=None,yLabel=None,xAchse=None,yAchse=None):
+    sns.set_style("whitegrid")
     num_datasets = len(PointConcTsArray)
     pc_values,wtref_values,labels,max_val,min_val = get_arrays_for_plotting(PointConcTsArray,labels=labels, dimensionless=dimensionless)
     
@@ -983,6 +1039,7 @@ def create_pdf(PointConcTsArray,dimensionless="False",labels=None,xLabel=None,yL
     
 # CDF plot function
 def create_cdf(PointConcTsArray,dimensionless="False",labels=None,xLabel=None,yLabel=None,xAchse=None,yAchse=None):
+    sns.set_style("whitegrid")
     num_datasets = len(PointConcTsArray)
     pc_values,wtref_values,labels,max_val,min_val = get_arrays_for_plotting(PointConcTsArray,labels=labels, dimensionless=dimensionless)
 
@@ -1000,6 +1057,7 @@ def create_cdf(PointConcTsArray,dimensionless="False",labels=None,xLabel=None,yL
 
 # Mean comparison plot function
 def create_means(PointConcTsArray,error_values=None,errorType=None,dimensionless="False",labels=None,xLabel=None,yLabel=None,xAchse=None,yAchse=None):
+    sns.set_style("whitegrid")
     num_datasets = len(PointConcTsArray)
 
     pc_values,wtref_value,labels,max_val,min_val = get_arrays_for_plotting(PointConcTsArray,labels=labels, dimensionless=dimensionless)
@@ -1036,6 +1094,7 @@ def create_means(PointConcTsArray,error_values=None,errorType=None,dimensionless
     
 # Box plot function
 def create_boxplot(PointConcTsArray,dimensionless="False",labels=None,xLabel=None,yLabel=None,xAchse=None,yAchse=None):
+    sns.set_style("whitegrid")
     num_datasets = len(PointConcTsArray)
     pc_values,wtref_values,labels,max_val,min_val = get_arrays_for_plotting(PointConcTsArray,labels=labels, dimensionless=dimensionless)
     
@@ -1050,10 +1109,22 @@ def create_boxplot(PointConcTsArray,dimensionless="False",labels=None,xLabel=Non
     return
 
 
+def create_violinplot(PointConcTsArray,dimensionless="False",labels=None,xLabel=None,yLabel=None,xAchse=None,yAchse=None):
+        sns.set_style("whitegrid")
+        num_datasets = len(PointConcTsArray)
+        pc_values,wtref_values,labels,max_val,min_val = get_arrays_for_plotting(PointConcTsArray,labels=labels, dimensionless=dimensionless)
+        plt.violinplot(pc_values,showmeans=True, showextrema=True,quantiles=[[0.1, 0.95] for _ in pc_values])
+        plt.title('Violin Plot Comparison')
+        plt.xlabel(xLabel if xLabel is not None else 'Datasets')
+        plt.ylabel(yLabel if yLabel is not None else 'Concentration')
+        plt.grid(True)
+        if num_datasets > 3:
+            plt.setp(plt.get_xticklabels(), rotation=45)
 
 
 # Q-Q plot function
 def create_quantilplot(PointConcTsArray,dimensionless="False",labels=None,xLabel=None,yLabel=None,xAchse=None,yAchse=None):
+    sns.set_style("whitegrid")
     num_datasets = len(PointConcTsArray)
     pc_values,wtref_values,labels,max_val,min_val = get_arrays_for_plotting(PointConcTsArray,labels=labels, dimensionless=dimensionless)
     
@@ -1073,6 +1144,7 @@ def create_quantilplot(PointConcTsArray,dimensionless="False",labels=None,xLabel
 
 # Scatter plot function
 def create_scatterplot(PointConcTsArray,dimensionless="False",labels=None,xLabel=None,yLabel=None,xAchse=None,yAchse=None):
+    sns.set_style("whitegrid")
     num_datasets = len(PointConcTsArray)
     pc_values,wtref_values,labels,max_val,min_val = get_arrays_for_plotting(PointConcTsArray,labels=labels, dimensionless=dimensionless)
     
@@ -1099,6 +1171,7 @@ def create_scatterplot(PointConcTsArray,dimensionless="False",labels=None,xLabel
    
     # Residual plot function
 def create_residualplot(PointConcTsArray,dimensionless="False",labels=None,xLabel=None,yLabel=None,xAchse=None,yAchse=None):
+    sns.set_style("whitegrid")
     num_datasets = len(PointConcTsArray)
     pc_values,wtref_values,labels,max_val,min_val = get_arrays_for_plotting(PointConcTsArray,labels=labels, dimensionless=dimensionless)
     
@@ -1125,6 +1198,7 @@ def create_residualplot(PointConcTsArray,dimensionless="False",labels=None,xLabe
 
     # Autocorrelation plot function
 def create_autocorrelation(max_lag,PointConcTsArray,dimensionless="False",labels=None,xLabel=None,yLabel=None,xAchse=None,yAchse=None):
+    sns.set_style("whitegrid")
     num_datasets = len(PointConcTsArray)
     pc_values,wtref_values,labels,max_val,min_val = get_arrays_for_plotting(PointConcTsArray,labels=labels, dimensionless=dimensionless)
     
@@ -1167,6 +1241,7 @@ def create_autocorrelation(max_lag,PointConcTsArray,dimensionless="False",labels
 
 
 def powerDensityPlot(PointConcTsArray,dimensionless="False",plot=True,labels=None,xLabel=None,yLabel=None,xAchse=None,yAchse=None):
+    sns.set_style("whitegrid")
     num_datasets = len(PointConcTsArray)
     pc_values,wtref_values,labels,max_val,min_val = get_arrays_for_plotting(PointConcTsArray,labels=labels, dimensionless=dimensionless)
     

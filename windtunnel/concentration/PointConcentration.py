@@ -799,7 +799,7 @@ class PointConcentration(pd.DataFrame):
                           "reference length (full-scale): {:.4f} [m], Tracer gas: {}, "
                           "mol. weight tracer: {:.4f} [mol/kg], "
                           "gas factor: {:.6f}, calibartion curve: {:.6f}, "
-                          "wtref: {:.4f} [m/s], full scale flow rate: {:.4f} [m^3/s]".format(self.x, self.y, self.z,
+                          "wtref: {:.4f} [m/s], full scale wtref: {:.4f} [m/s], full scale flow rate: {:.4f} [m^3/s]".format(self.x, self.y, self.z,
                               self.x_source, self.y_source, self.z_source,
                               self.x_measure, self.y_measure, self.z_measure,
                               self.temperature,
@@ -812,6 +812,7 @@ class PointConcentration(pd.DataFrame):
                               self.gas_factor,
                               self.calibration_curve,
                               self.wtref_mean,
+                              self.full_scale_wtref,
                               self.full_scale_flow_rate)
                           + "" + '\n' +
                           "\"full scale time [s]\" \"c_star [-]\" "
@@ -858,7 +859,7 @@ class PointConcentration(pd.DataFrame):
                           "reference length (full-scale): {:.4f} [m], Tracer gas: {}, "
                           "mol. weight tracer: {:.4f} [mol/kg], "
                           "gas factor: {:.6f}, calibartion curve: {:.6f}, "
-                          "wtref: {:.4f} [m/s], full scale flow rate: {:.4f} [m^3/s]".format(self.x, self.y, self.z,
+                          "wtref: {:.4f} [m/s],full scale wtref: {:.4f} [m/s], full scale flow rate: {:.4f} [m^3/s]".format(self.x, self.y, self.z,
                               self.x_source, self.y_source, self.z_source,
                               self.x_measure, self.y_measure, self.z_measure,
                               self.temperature,
@@ -871,6 +872,7 @@ class PointConcentration(pd.DataFrame):
                               self.gas_factor,
                               self.calibration_curve,
                               self.wtref_mean,
+                              self.full_scale_wtref,
                               self.full_scale_flow_rate)
                           + "" + '\n' +
                           "\"non-dimensional time [s]\" "
@@ -920,7 +922,7 @@ class PointConcentration(pd.DataFrame):
                           "reference length (full-scale): {:.4f} [m], Tracer gas: {}, "
                           "mol. weight tracer: {:.4f} [mol/kg], "
                           "gas factor: {:.6f}, calibartion curve: {:.6f}, "
-                          "wtref: {:.4f} [m/s], full scale flow rate: {:.4f} [m^3/s]".format(self.x, self.y, self.z,
+                          "wtref: {:.4f} [m/s],full scale wtref: {:.4f}[m/s], full scale flow rate: {:.4f} [m^3/s]".format(self.x, self.y, self.z,
                               self.x_source, self.y_source, self.z_source,
                               self.x_measure, self.y_measure, self.z_measure,
                               self.temperature,
@@ -933,6 +935,7 @@ class PointConcentration(pd.DataFrame):
                               self.gas_factor,
                               self.calibration_curve,
                               self.wtref_mean,
+                              self.full_scale_wtref,
                               self.full_scale_flow_rate)
                           + "" + '\n' +
                           "\"c_star [-]\" \"net_concentration [ppmV]\" "
@@ -993,7 +996,7 @@ class PointConcentration(pd.DataFrame):
                           "reference length (full-scale): {:.4f} [m], Tracer gas: {}, "
                           "mol. weight tracer: {:.4f} [mol/kg], "
                           "gas factor: {:.6f}, calibartion curve: {:.6f}, "
-                          "wtref: {:.4f} [m/s], full scale flow rate: {:.4f} [m^3/s]".format(self.x, self.y, self.z,
+                          "wtref: {:.4f} [m/s],full scale wtref: {:.4f}[m/s], full scale flow rate: {:.4f} [m^3/s]".format(self.x, self.y, self.z,
                               self.x_source, self.y_source, self.z_source,
                               self.x_measure, self.y_measure, self.z_measure,
                               self.temperature,
@@ -1006,6 +1009,7 @@ class PointConcentration(pd.DataFrame):
                               self.gas_factor,
                               self.calibration_curve,
                               self.wtref_mean,
+                              self.full_scale_wtref,
                               self.full_scale_flow_rate)
                           + "" + '\n' +
                           "\"Means: c_star [-]\" \"net_concentration [ppmV]\" "
@@ -1020,6 +1024,23 @@ class PointConcentration(pd.DataFrame):
                           "\"Peak2MeanRatio: c_star [-]\" \"net_concentration [ppmV]\" "
                           "\"full_scale_concentration [ppmV]\"")
 
+
+    def get_averagedData(self, name, filename, time_freq, averaging_intervals,dimensionless=False):    
+        #data = conc_ts[name][filename]
+        data = self.c_star if dimensionless else self.net_concentration
+        data = data.values  #pandas Series to numpy array
+        
+        splits = [int(averaging_interval / time_freq) for averaging_interval in averaging_intervals]
+        v_averages = []
+        for split in splits:
+            trimmed_length = len(data) // split * split #Trim data to be divisible by split size
+            #print(len(data))
+            #print(trimmed_length)
+            trimmed_data = data[:trimmed_length]
+            #print(len(trimmed_data))
+            averages = np.mean(trimmed_data.reshape(-1, split), axis=1) #Average along axis=1
+            v_averages.append(averages)
+        return v_averages
 
 
     def calculate_turbulence_intensity(self,dimensionless="False",returnDistribution="False",returnMetrics="False"):

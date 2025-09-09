@@ -21,3 +21,4 @@ full_scale_wtref,5.0,5.0,5.0,5.0,5.0,5.0
 full_scale_flow_rate,0.5,0.5,0.5,0.5,0.5,0.5
 full_scale_temp,20,20,20,20,20,20
 full_scale_pressure,101325,101325,101325,101325,101325,101325   
+config_name,"test","test","test","test","test","test"
