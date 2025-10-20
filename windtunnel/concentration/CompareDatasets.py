@@ -1118,8 +1118,8 @@ def create_violinplot(PointConcTsArray,dimensionless="False",labels=None,xLabel=
         plt.xlabel(xLabel if xLabel is not None else 'Datasets')
         plt.ylabel(yLabel if yLabel is not None else 'Concentration')
         plt.grid(True)
-        if num_datasets > 3:
-            plt.setp(plt.get_xticklabels(), rotation=45)
+        #if num_datasets > 3:
+        #    plt.setp(plt.get_xticklabels(), rotation=45)
 
 
 # Q-Q plot function

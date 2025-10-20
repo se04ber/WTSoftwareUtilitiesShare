@@ -17,6 +17,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
 
+
 def load_avg_file(filepath):
     """
     Load and parse an avg file to extract metadata and concentration data.
