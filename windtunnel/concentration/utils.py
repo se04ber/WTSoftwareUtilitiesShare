@@ -277,6 +277,342 @@ def combine_to_csv(file_names, base_path, file_type='avg', output_filename='comb
     return df
 
 
+def calculate_uncertainties(conc_ts_dict, split_factor=1.8, uncertainty_threshold=1e-4, 
+                           verbose=True, metrics_to_calculate=None, concentration_types=None,
+                           include_abs=True, include_pct=True):
+    """
+    Calculate measurement uncertainties from repeated measurements.
+    
+    Args:
+        conc_ts_dict (dict): Dictionary mapping filenames to PointConcentration objects
+        split_factor (float): Factor for splitting long time series (default: 1.8)
+        uncertainty_threshold (float): Threshold for relative deviation calculation (default: 1e-4)
+        verbose (bool): Print detailed logging information (default: True)
+        metrics_to_calculate (list): List of metrics to calculate uncertainties for. 
+                                     Options: ["Mean", "Median", "Peak2Mean", "P95"]
+                                     If None, calculates for all (default: None)
+        concentration_types (list): List of concentration types to calculate uncertainties for.
+                                   Options: ["c_star", "net_concentration", "full_scale_concentration"]
+                                   If None, calculates only for c_star (default: None)
+        include_abs (bool): Include absolute uncertainties (default: True)
+        include_pct (bool): Include percentage uncertainties (default: True)
+        
+    Returns:
+        dict: Dictionary mapping config_name to uncertainty values with statistics column names
+    """
+    conc_type_map = {
+        "c_star": {
+            "attr": "c_star",
+            "Mean": "Avg_c_star [-]",
+            "Median": "Median_c_star",
+            "Peak2Mean": "Peak2MeanRatio_cstar",
+            "P95": "Percentiles 95_cstar"
+        },
+        "net_concentration": {
+            "attr": "net_concentration",
+            "Mean": "Avg_net_concentration [ppmV]",
+            "Median": "Median_net_concentration",
+            "Peak2Mean": "Peak2MeanRatio_net_conc",
+            "P95": "Percentiles 95_net_concentration"
+        },
+        "full_scale_concentration": {
+            "attr": "full_scale_concentration",
+            "Mean": "Avg_full_scale_concentration [ppmV]",
+            "Median": "Median_full_scale_concentration",
+            "Peak2Mean": "Peak2MeanRatio_full_scale_conc",
+            "P95": "percentiles95_full_scale_concentration"
+        }
+    }
+    
+    if concentration_types is None:
+        concentration_types = ["c_star"]
+    
+    if metrics_to_calculate is None:
+        metrics_to_calculate = ["Mean", "Median", "Peak2Mean", "P95"]
+    
+    def compute_stats(series, conc_type):
+        stats = {}
+        type_map = conc_type_map[conc_type]
+        
+        if "Mean" in metrics_to_calculate:
+            stats[type_map["Mean"]] = float(np.mean(series))
+        if "Median" in metrics_to_calculate:
+            stats[type_map["Median"]] = float(np.median(series))
+        if "Peak2Mean" in metrics_to_calculate:
+            mean = float(np.mean(series))
+            stats[type_map["Peak2Mean"]] = float(np.max(series) / mean) if mean != 0 else np.nan
+        if "P95" in metrics_to_calculate:
+            stats[type_map["P95"]] = float(np.percentile(series, 95))
+        return stats
+    uncertainty_results = {}
+    
+    for conc_type in concentration_types:
+        config_stats = {}
+        split_report = {}
+        file_report = {}
+        
+        if conc_type not in conc_type_map:
+            if verbose:
+                print(f"⚠️ Unknown concentration type: {conc_type}, skipping")
+            continue
+        
+        attr_name = conc_type_map[conc_type]["attr"]
+        
+        config_file_lengths = {}
+        for file, ts in conc_ts_dict.items():
+            if not hasattr(ts, attr_name):
+                continue
+            series_data = getattr(ts, attr_name)
+            if series_data is None:
+                continue
+            cfg = ts.config_name
+            if cfg not in config_file_lengths:
+                config_file_lengths[cfg] = []
+            config_file_lengths[cfg].append((file, len(series_data)))
+        
+        for cfg in config_file_lengths:
+            split_report[cfg] = []
+            file_report[cfg] = {"n_files": 0, "n_samples": 0}
+        
+        all_metrics = [conc_type_map[conc_type][m] for m in metrics_to_calculate if m in conc_type_map[conc_type]]
+        
+        for file, ts in conc_ts_dict.items():
+            if not hasattr(ts, attr_name):
+                continue
+            series_data = getattr(ts, attr_name)
+            if series_data is None:
+                continue
+            
+            cfg = ts.config_name
+            
+            if cfg not in config_stats:
+                config_stats[cfg] = {m: [] for m in all_metrics}
+            
+            series = series_data.values if hasattr(series_data, 'values') else series_data
+            min_len = min([len(getattr(conc_ts_dict[f], attr_name)) for f in conc_ts_dict 
+                          if hasattr(conc_ts_dict[f], attr_name) and getattr(conc_ts_dict[f], attr_name) is not None
+                          and conc_ts_dict[f].config_name == cfg])
+            
+            to_split = len(series) >= split_factor * min_len and len(series) >= 2
+            
+            if to_split:
+                half = len(series) // 2
+                for part in [series[:half], series[half:]]:
+                    stats = compute_stats(part, conc_type)
+                    for m in all_metrics:
+                        if m in stats:
+                            config_stats[cfg][m].append(stats[m])
+                file_report[cfg]["n_samples"] += 2
+                split_report[cfg].append((file, len(series), half, len(series) - half))
+                if verbose:
+                    print(f"🔀 {cfg} ({conc_type}): File {file} (len={len(series)}) split -> halves {half} & {len(series) - half}")
+            else:
+                stats = compute_stats(series, conc_type)
+                for m in all_metrics:
+                    if m in stats:
+                        config_stats[cfg][m].append(stats[m])
+                file_report[cfg]["n_samples"] += 1
+                if verbose:
+                    print(f"   {cfg} ({conc_type}): File {file} (len={len(series)}) normal processing")
+            
+            file_report[cfg]["n_files"] += 1
+        
+        for cfg in config_stats:
+            if verbose:
+                n_files = file_report[cfg]["n_files"]
+                n_samples = file_report[cfg]["n_samples"]
+                splits = len(split_report[cfg])
+                print(f"✅ Configuration {cfg} ({conc_type}): {n_files} files -> {n_samples} samples (splits: {splits})")
+            
+            if cfg not in uncertainty_results:
+                uncertainty_results[cfg] = {}
+            
+            for m in all_metrics:
+                if m not in config_stats[cfg]:
+                    continue
+                vals = np.array(config_stats[cfg][m])
+                if vals.size >= 2:
+                    overall = float(np.mean(vals))
+                    deviation_abs = (np.max(vals) - np.min(vals)) / 2.0
+                    deviation_pct = (deviation_abs / overall * 100.0) if overall >= uncertainty_threshold else np.nan
+                    
+                    if include_abs:
+                        uncertainty_results[cfg][f"{m}_uncertainty_abs"] = deviation_abs
+                    if include_pct:
+                        uncertainty_results[cfg][f"{m}_uncertainty_pct"] = deviation_pct
+                else:
+                    if include_abs:
+                        uncertainty_results[cfg][f"{m}_uncertainty_abs"] = np.nan
+                    if include_pct:
+                        uncertainty_results[cfg][f"{m}_uncertainty_pct"] = np.nan
+    
+    return uncertainty_results
+
+
+def combine_to_csv2(file_names, base_path, file_type='avg', output_filename='combined_data.csv',
+                    conc_ts_dict=None, config_name_mapping=None, uncertainty_results=None,
+                    save_config_names=False, save_uncertainties=False, columns_to_save=None):
+    """
+    Extended version: Combine files and add config names and uncertainties.
+    
+    Args:
+        file_names (list): Array of specific filenames to process
+        base_path (str): Base directory path containing the files
+        file_type (str): Type of files to process ('avg' or 'stats')
+        output_filename (str): Name of the output CSV file
+        conc_ts_dict (dict): Dictionary mapping filenames to PointConcentration objects
+        config_name_mapping (dict): Dict mapping filename to config_name (optional if conc_ts_dict provided)
+        uncertainty_results (dict): Dict mapping config_name to uncertainty values
+        save_config_names (bool): Add ConfigName column
+        save_uncertainties (bool): Add uncertainty columns
+        columns_to_save (list): List of column names to keep (None = all)
+        
+    Returns:
+        pd.DataFrame: Combined data as a pandas DataFrame
+    """
+    
+    if file_type.lower() == 'avg':
+        load_function = load_avg_file
+    elif file_type.lower() == 'stats':
+        load_function = load_stats_file
+    else:
+        raise ValueError("file_type must be 'avg' or 'stats'")
+    
+    file_paths = []
+    for filename in file_names:
+        search_pattern = os.path.join(base_path, '**', filename)
+        matches = glob.glob(search_pattern, recursive=True)
+        if matches:
+            file_paths.extend(matches)
+        else:
+            print(f"Warning: File '{filename}' not found in {base_path}{filename}")
+    
+    if not file_paths:
+        print(f"No valid {file_type} files found from the provided list")
+        return None
+    
+    print(f"Processing {len(file_paths)} {file_type} files")
+    
+    all_data = []
+    for filepath in file_paths:
+        print(f"Processing: {filepath}")
+        data = load_function(filepath)
+        if data:
+            all_data.append(data)
+    
+    if not all_data:
+        print("No valid data found in any files")
+        return None
+    
+    df = pd.DataFrame(all_data)
+    
+    if file_type.lower() == 'avg':
+        columns = ['filename', 'x_fs', 'y_fs', 'z_fs', 'wtref_fs',
+                   'c_star', 'net_concentration', 'full_scale_concentration']
+        column_mapping = {
+            'filename': 'Filename',
+            'x_fs': 'X_fs [m]',
+            'y_fs': 'Y_fs [m]',
+            'z_fs': 'Z_fs [m]',
+            'wtref_fs': 'Wtref_fs [m/s]',
+            'c_star': 'Avg_c_star [-]',
+            'net_concentration': 'Avg_net_concentration [ppmV]',
+            'full_scale_concentration': 'Avg_full_scale_concentration [ppmV]'
+        }
+    else:
+        columns = ['filename', 'x_fs', 'y_fs', 'z_fs', 'wtref_fs',
+                   'c_star', 'net_concentration', 'full_scale_concentration',
+                   'percentiles95_c_star', 'percentiles95_net_concentration', 'percentiles95_full_scale_concentration',
+                   'peak2mean_c_star', 'peak2mean_net_concentration', 'peak2mean_full_scale_concentration']
+        column_mapping = {
+            'filename': 'Filename',
+            'x_fs': 'X_fs [m]',
+            'y_fs': 'Y_fs [m]',
+            'z_fs': 'Z_fs [m]',
+            'wtref_fs': 'Wtref_fs [m/s]',
+            'c_star': 'Avg_c_star [-]',
+            'net_concentration': 'Avg_net_concentration [ppmV]',
+            'full_scale_concentration': 'Avg_full_scale_concentration [ppmV]',
+            'percentiles95_c_star': 'Percentiles 95_cstar',
+            'percentiles95_net_concentration': 'Percentiles 95_net_concentration',
+            'percentiles95_full_scale_concentration': 'percentiles95_full_scale_concentration',
+            'peak2mean_c_star': 'Peak2MeanRatio_cstar',
+            'peak2mean_net_concentration': 'Peak2MeanRatio_net_conc',
+            'peak2mean_full_scale_concentration': 'Peak2MeanRatio_full_scale_conc'
+        }
+    
+    df = df[columns].rename(columns=column_mapping)
+    df = df.fillna(0.0)
+    
+    if save_config_names:
+        if config_name_mapping:
+            mapping = config_name_mapping
+        elif conc_ts_dict:
+            mapping = {k: v.config_name for k, v in conc_ts_dict.items()}
+        else:
+            mapping = {}
+        df.insert(1, "ConfigName", df["Filename"].apply(
+            lambda x: mapping.get(x.replace("_stats_", "").replace("_avg_", ""), "")))
+    
+    if save_uncertainties and uncertainty_results:
+        for idx, row in df.iterrows():
+            fname = row["Filename"].replace("_stats_", "").replace("_avg_", "")
+            cfg = None
+            if config_name_mapping and fname in config_name_mapping:
+                cfg = config_name_mapping[fname]
+            elif conc_ts_dict and fname in conc_ts_dict:
+                cfg = conc_ts_dict[fname].config_name
+            
+            if cfg and cfg in uncertainty_results:
+                for key, val in uncertainty_results[cfg].items():
+                    if key not in df.columns:
+                        df[key] = np.nan
+                    df.at[idx, key] = val
+        
+        uncertainty_map = {
+            "Avg_c_star [-]": ["Avg_c_star [-]_uncertainty_abs", "Avg_c_star [-]_uncertainty_pct"],
+            "Median_c_star": ["Median_c_star_uncertainty_abs", "Median_c_star_uncertainty_pct"],
+            "Peak2MeanRatio_cstar": ["Peak2MeanRatio_cstar_uncertainty_abs", "Peak2MeanRatio_cstar_uncertainty_pct"],
+            "Percentiles 95_cstar": ["Percentiles 95_cstar_uncertainty_abs", "Percentiles 95_cstar_uncertainty_pct"],
+            
+            "Avg_net_concentration [ppmV]": ["Avg_net_concentration [ppmV]_uncertainty_abs", "Avg_net_concentration [ppmV]_uncertainty_pct"],
+            "Median_net_concentration": ["Median_net_concentration_uncertainty_abs", "Median_net_concentration_uncertainty_pct"],
+            "Peak2MeanRatio_net_conc": ["Peak2MeanRatio_net_conc_uncertainty_abs", "Peak2MeanRatio_net_conc_uncertainty_pct"],
+            "Percentiles 95_net_concentration": ["Percentiles 95_net_concentration_uncertainty_abs", "Percentiles 95_net_concentration_uncertainty_pct"],
+            
+            "Avg_full_scale_concentration [ppmV]": ["Avg_full_scale_concentration [ppmV]_uncertainty_abs", "Avg_full_scale_concentration [ppmV]_uncertainty_pct"],
+            "Median_full_scale_concentration": ["Median_full_scale_concentration_uncertainty_abs", "Median_full_scale_concentration_uncertainty_pct"],
+            "Peak2MeanRatio_full_scale_conc": ["Peak2MeanRatio_full_scale_conc_uncertainty_abs", "Peak2MeanRatio_full_scale_conc_uncertainty_pct"],
+            "percentiles95_full_scale_concentration": ["percentiles95_full_scale_concentration_uncertainty_abs", "percentiles95_full_scale_concentration_uncertainty_pct"]
+        }
+        
+        ordered_cols = []
+        added_uncertainties = set()
+        for col in df.columns:
+            if "_uncertainty_" not in col:
+                ordered_cols.append(col)
+                if col in uncertainty_map:
+                    for unc_col in uncertainty_map[col]:
+                        if unc_col in df.columns and unc_col not in added_uncertainties:
+                            ordered_cols.append(unc_col)
+                            added_uncertainties.add(unc_col)
+        
+        for col in df.columns:
+            if "_uncertainty_" in col and col not in added_uncertainties:
+                ordered_cols.append(col)
+        
+        df = df[ordered_cols]
+    
+    if columns_to_save is not None:
+        available_cols = [c for c in columns_to_save if c in df.columns]
+        df = df[available_cols]
+    
+    df.to_csv(output_filename, index=False)
+    print(f"Data saved to {output_filename}")
+    
+    return df
+
+
 from collections import defaultdict
 def load_csv(file_path, columns=["X_fs [m]", "Y_fs [m]", "Z_fs [m]","Avg_net_concentration [ppmV]"], combineCoordinates=True):
     """
