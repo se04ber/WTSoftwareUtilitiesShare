@@ -35,9 +35,9 @@ Repository for wind tunnel analysis utilities and deployable notebooks.
 
 ---
 
-### Option 2: Windows Local Installation
+### Option 2: Full Installation: Windows Local using scripts
 
-**Best for:** Installing and running locally on Windows in a clean environment with two clicks using helper scripts.
+**Best for:** Installing, running and maybe editing or contributing to the full repository locally on Windows. When changes in the project folder should be made. Creates a clean environment "WTConc2" and runs notebooks in it with two clicks using helper scripts.
 
 **Requirements:**
 - Python >3.6 installed
@@ -62,9 +62,9 @@ Repository for wind tunnel analysis utilities and deployable notebooks.
 
 ---
 
-### Option 3: Full Development Setup
+### Option 3: Full Installation: Manually
 
-**Best for:** Editing the project, contributing, or using on Linux/Windows locally with full control.
+**Best for:** Not Windows users who want do install, run and maybe edit the full project folder logic locally, contribute etc. Only the pip packages in requirements.txt need to be set up.
 
 **Requirements:**
 - Python >3.6 installed
