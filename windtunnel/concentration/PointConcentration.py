@@ -728,7 +728,7 @@ class PointConcentration(pd.DataFrame):
                                            self.c_star,
                                            self.net_concentration)
                                           ).transpose(),
-                   fmt='%.4f',
+                   fmt='%.6f',
                    header="General concentration measurement data:" + '\n' +
                           "" + '\n' +
                           "geometric scale: 1:{}".format(float(self.scale))
