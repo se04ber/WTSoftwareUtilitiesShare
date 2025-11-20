@@ -754,7 +754,7 @@ class PointConcentration(pd.DataFrame):
                                                        self.calibration_curve,
                                                        self.wtref_mean)
                           + "" + '\n' +
-                          "\"time [ms]\" \"c_star [-]\" \"net_concentration [ppmV]\" ")
+                          "\"time [ms]\" \"c_star [-] {:.6f}\" \"net_concentration [ppmV] {:.6f}\" ")
 
     def save2file_fs(self, filename, out_dir=None):
         """ Save full scale and model scale data from PointConcentration object
@@ -938,8 +938,8 @@ class PointConcentration(pd.DataFrame):
                               self.full_scale_wtref,
                               self.full_scale_flow_rate)
                           + "" + '\n' +
-                          "\"c_star [-]\" \"net_concentration [ppmV]\" "
-                          "\"full_scale_concentration [ppmV]\"")
+                          "\"c_star [-] {:.6f}\" \"net_concentration [ppmV] {:.6f}\" "
+                          "\"full_scale_concentration [ppmV] {:.6f}\"")
 
 
     def save2file_fullStats(self, filename, out_dir=None):
@@ -1012,17 +1012,17 @@ class PointConcentration(pd.DataFrame):
                               self.full_scale_wtref,
                               self.full_scale_flow_rate)
                           + "" + '\n' +
-                          "\"Means: c_star [-]\" \"net_concentration [ppmV]\" "
-                          "\"full_scale_concentration [ppmV]\""
+                          "\"Means: c_star [-] {:.6f}\" \"net_concentration [ppmV] {:.6f}\" "
+                          "\"full_scale_concentration [ppmV] {:.6f}\""
                           + "" + #'\n' +
-                          "\"Percentiles 95: c_star [-]\" \"net_concentration [ppmV]\" "
-                          "\"full_scale_concentration [ppmV]\""
+                          "\"Percentiles 95: c_star [-] {:.6f}\" \"net_concentration [ppmV] {:.6f}\" "
+                          "\"full_scale_concentration [ppmV] {:.6f}\""
                           + "" + #'\n' +
-                          "\"Percentiles 5: c_star [-]\" \"net_concentration [ppmV]\" "
-                          "\"full_scale_concentration [ppmV]\""
+                          "\"Percentiles 5: c_star [-] {:.6f}\" \"net_concentration [ppmV] {:.6f}\" "
+                          "\"full_scale_concentration [ppmV] {:.6f}\""
                           + "" + #'\n' +
-                          "\"Peak2MeanRatio: c_star [-]\" \"net_concentration [ppmV]\" "
-                          "\"full_scale_concentration [ppmV]\"")
+                          "\"Peak2MeanRatio: c_star [-] {:.6f}\" \"net_concentration [ppmV] {:.6f}\" "
+                          "\"full_scale_concentration [ppmV] {:.6f}\"")
 
 
     def get_averagedData(self, name, filename, time_freq, averaging_intervals,dimensionless=False):    
