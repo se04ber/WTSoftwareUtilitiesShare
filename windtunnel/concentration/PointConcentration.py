@@ -982,7 +982,7 @@ class PointConcentration(pd.DataFrame):
                                            np.max(self.net_concentration) / np.mean(self.net_concentration),
                                            np.max(self.full_scale_concentration) / np.mean(self.full_scale_concentration)
                                             )).transpose(),
-                   fmt='%.4f',
+                   fmt='%.6',
                    header="General concentration measurement data:" + '\n' +
                           "" + '\n' +
                           "geometric scale: 1:{}".format(float(self.scale))
