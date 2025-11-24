@@ -17,6 +17,8 @@ def install_windtunnel():
         print("📦 Installing windtunnel package from GitHub...")
         subprocess.check_call([
             sys.executable, "-m", "pip", "install", 
+            "--force-reinstall",  # Force reinstall even if already installed
+            "--no-cache-dir",     # Don't use pip's cache
             f"git+{GITHUB_REPO_URL}"
         ])
         print("✅ windtunnel package installed successfully!")
