@@ -21,7 +21,8 @@ def install_windtunnel():
             "--no-cache-dir",     # Don't use pip's cache
             f"git+{GITHUB_REPO_URL}"
         ])
-        print("✅ windtunnel package installed successfully!")
+        #print("✅ windtunnel package installed successfully!")
+        print("Windtunnel package installed successfully!")
         return True
     except subprocess.CalledProcessError as e:
         print(f"❌ Installation failed: {e}")
@@ -49,7 +50,8 @@ def setup_folder_structure():
     
     for directory in [data_dir, input_dir, param_dir, results_dir]:
         os.makedirs(directory, exist_ok=True)
-        print(f"✅ Created directory: {directory}")
+        #print(f"✅ Created directory: {directory}")
+        print(f"Created directory: {directory}")
     
     return base_dir, data_dir, input_dir, param_dir, results_dir
 
@@ -96,12 +98,14 @@ def download_example_data(input_dir, param_dir):
                 if not os.path.exists(file_path):
                     try:
                         urllib.request.urlretrieve(url, file_path)
-                        print(f"✅ Downloaded: {local_filename}")
+                        #print(f"✅ Downloaded: {local_filename}")
+                        print(f"Downloaded: {local_filename}")
                     except Exception as e:
                         print(f"⚠️  Could not download {local_filename}: {e}")
                         print(f"   URL: {url}")
                 else:
-                    print(f"✅ Already exists: {local_filename}")
+                    #print(f"✅ Already exists: {local_filename}")
+                    print(f"Already exists: {local_filename}")
         
         return True
         
@@ -114,7 +118,8 @@ def setup_github_data(input_dir, param_dir, results_dir):
     print("🌐 Using GitHub example data")
     
     if download_example_data(input_dir, param_dir):
-        print("✅ Example data setup complete!")
+        #print("✅ Example data setup complete!")
+        print("Example data setup complete!")
         
         # Set paths to downloaded data
         path_dir = os.path.join(os.getcwd(), "Data")
@@ -155,4 +160,3 @@ def setup_local_data(input_dir, param_dir, results_dir, data_folder_name, parame
     namelist = [measurement_prefix]
     
     return path_dir, path, csv_file, output_path, namelist
-
