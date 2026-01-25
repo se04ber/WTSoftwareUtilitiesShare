@@ -1,17 +1,19 @@
 # Tests
 
-This folder contains **unit tests** (fast, formula-level guardrails) and
-**regression tests** (end-to-end checks against known-good example outputs).
+This folder contains **unit tests** (fast guardrails) and **regression tests**
+(compare against known-good example outputs).
 
 ## Why this exists
 
 This project is used by students and non-IT users. To keep the code safe to
 refactor, we added automated tests that:
 
-- Re-run the **UBA_GA concentration** pipeline and compare results to a golden CSV + the original Excel control table.
-- Re-run a **flow (vertical profile)** pipeline and compare intermediate results to the saved `*_turb.txt` reference (before plotting).
+- Re-run the **UBA_GA concentration** pipeline and compare against a golden CSV
+  and a hand-made Excel control table.
+- Re-run the **flow (vertical profile)** pipeline and compare against saved
+  reference outputs used by plots (turb table + spectra).
 
-## Folder structure (SOTA)
+## Folder structure
 
 - **`tests/unit/`**: fast checks for formulas and config branches
 - **`tests/regression/`**: golden-file regression tests (bigger but still CI-friendly)
@@ -32,85 +34,52 @@ structure.
 
 ### Concentration (UBA_GA)
 
-- **End-to-end regression**:
-  - `tests/regression/test_concentration_uba_ga_regression.py`
+- **Regression (golden files + control table)**:
+  - `tests/regression/concentration/test_concentration_uba_ga_regression.py`
   - Compares computed results vs `tests/fixtures/concentration/expected/combined_data.csv`
-  - Cross-checks intermediate values vs `tests/fixtures/concentration/excel/Beispiel Umrechnung zur Kontrolle.xlsx`
-- **Intermediate formulas + output files**:
-  - `tests/unit/test_pointconcentration_formulas.py`
-  - Locks down `net_concentration`, `c_star`, full-scale concentration, time scaling, and save-file creation
+  - Cross-checks key intermediate values vs
+    `tests/fixtures/concentration/excel/Beispiel Umrechnung zur Kontrolle.xlsx`
+  - Also checks saving `_avg_`/`_stats_` files + combining to CSV works end-to-end
+- **Formulas + output files**:
+  - `tests/unit/concentration/test_pointconcentration_formulas.py`
+  - Guards `net_concentration`, `c_star`, full-scale concentration, time scaling, and save-file creation
 - **Config branch coverage**:
-  - `tests/unit/test_pointconcentration_config_paths.py`
-  - Covers the different `calc_model_mass_flow_rate()` branches (max-flow, calibration, legacy path)
+  - `tests/unit/concentration/test_pointconcentration_config_paths.py`
+  - Covers `calc_model_mass_flow_rate()` branches (max-flow, calibration, legacy path)
+- **Multiple prefixes (no overwrites)**:
+  - `tests/unit/concentration/test_multi_prefix_processing.py`
+- **`parameters_PerFolder=True` path**:
+  - `tests/unit/concentration/test_parameters_per_folder.py`
 
 ### Flow (vertical profile)
 
-- **Regression against saved intermediate results (before plots)**:
-  - `tests/regression/test_flow_vertical_profile_regression.py`
-  - Uses `tests/fixtures/flow/*` and matches rows in `*_turb.txt` for a small representative subset of time series files.
+- **Regression against saved “turb table” (plot input)**:
+  - `tests/regression/flow/test_flow_vertical_profile_regression.py`
+  - Uses `tests/fixtures/flow/*` and matches rows in `*_turb.txt` for a small
+    representative subset of time series files.
+- **Regression against saved spectra file (plot input)**:
+  - `tests/regression/flow/test_flow_spectra_regression.py`
+- **Regression guardrails for fitted parameters**:
+  - `tests/regression/flow/test_alpha_and_z0_regression.py`
+- **Basic data contracts (shape/ranges)**:
+  - `tests/unit/flow/test_flow_profile_contracts.py`
 
-### Utilities
+### Utilities / performance
 
-- `tests/unit/test_utils_and_uncertainty.py`
-  - Checks `get_files()` sorting/selection
-  - Checks `calculate_uncertainties()` output keys are stable (shape contract)
-
----
-
-## TODO / missing tests (planned next steps)
-
-This is the current shortlist of missing coverage to add before larger refactors.
-
-### Flow: more outputs used by plots
-
-Right now we regression-test the **pre-plot “turb table”** (`*_turb.txt`) for a small subset
-of files. We still need tests for other plot-relevant computed outputs, e.g.:
-
-- **Spectra** (power spectral density): intermediate arrays used by spectra plots
-- **Wavelet transform** outputs (if used by `plot_wavelet`)
-- **Convergence** metrics used by convergence plots
-- **Reference spectra alignment** (matching the correct reference dataset by height)
-
-Goal: tests should validate the **computed data that feeds plots**, not the plot images.
-
-### Concentration: more settings / configuration paths
-
-Right now we cover UBA_GA with a single parameter CSV shape and `parameters_PerFolder=False`.
-We still need tests for:
-
-- **Ambient conditions per folder vs per file** (`parameters_PerFolder=True/False`)
-- **Parameter CSV variants**:
-  - “one column per file” (current)
-  - “one column for folder / config” (if supported)
-  - multiple configs in one file (multiple columns / names)
-- **Multiple `namelist` entries**:
-  - read and process multiple prefixes in one run
-  - ensure outputs are combined correctly and don’t overwrite each other
-
-### Performance guardrail
-
-Add a simple performance test that measures **processing time** for a known workload
-(e.g. a small fixed subset of UBA_GA or flow files) so we can detect large slowdowns
-when refactoring. This should be a **soft threshold** (CI-safe) and mainly used as a
-trend/alert, not a strict benchmark.
-
-Status: implemented as `tests/unit/common/test_performance_smoke.py` (budget can be
-overridden with `WT_TEST_MAX_SECONDS`).
-
-### Test organization (further cleanup)
-
-We should further separate tests by domain for fast navigation:
-
-- `tests/unit/concentration/` and `tests/unit/flow/`
-- `tests/regression/concentration/` and `tests/regression/flow/`
+- `tests/unit/common/test_utils_and_uncertainty.py`
+  - Checks `get_files()` prefix matching + sorting
+  - Checks `calculate_uncertainties()` output keys are stable (shape/contract)
+- `tests/unit/common/test_performance_smoke.py`
+  - Soft runtime budget for a small representative workload
+  - Can be overridden with `WT_TEST_MAX_SECONDS`
 
 ## Running tests locally
 
-From the repo root:
+From `Manual/WTSoftwareUtilitiesShare/`:
 
 ```bash
-pip install -r requirements.txt -r requirements-dev.txt
-pytest
+python -m pip install -r requirements.txt -r requirements-dev.txt
+python -m pytest
 ```
 
 ## CI
