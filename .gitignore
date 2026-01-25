@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# OS / editors
+.DS_Store
+
+# Local envs
+.venv/
+venv/
+WTConc2/
