@@ -59,11 +59,12 @@ class PuffConcentration(pd.DataFrame):
         self['fast_FID'] = pd.Series(data=fast_FID)
 
         self.signal = signal
-        self.time = time
+        # Avoid pandas "new attribute name" warnings for DataFrame subclasses.
+        self.__dict__["time"] = time
         self.dt = None
-        self.wtref = wtref
+        self.__dict__["wtref"] = wtref
         self.net_concentration = None			
-        self.open_rate = open_rate  # [%]
+        self.__dict__["open_rate"] = open_rate  # [%]
         self.x = None
         self.y = None
         self.z = None

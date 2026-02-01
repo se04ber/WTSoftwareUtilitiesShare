@@ -61,9 +61,11 @@ class PointConcentration(pd.DataFrame):
         self.scale = None     #[-]
         self.wtref_mean = None #[m/s]
 
-        self.time = time      
-        self.open_rate = open_rate
-        self.wtref = wtref
+        # Pandas DataFrame subclasses treat attribute assignment as column creation.
+        # Store these as plain Python attributes to avoid noisy warnings (no behavior change).
+        self.__dict__["time"] = time
+        self.__dict__["open_rate"] = open_rate
+        self.__dict__["wtref"] = wtref
         
         self.net_concentration = None        #[ppmV]
         self.c_star = None                   #[-]

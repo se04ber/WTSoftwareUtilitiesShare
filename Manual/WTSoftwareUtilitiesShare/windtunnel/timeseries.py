@@ -38,14 +38,15 @@ class Timeseries(pd.DataFrame):
         self.x = x
         self.y = y
         self.z = z
-        self.t_arr = t_arr
-        self.t_transit = t_transit
+        # Avoid pandas "new attribute name" warnings for DataFrame subclasses.
+        self.__dict__["t_arr"] = t_arr
+        self.__dict__["t_transit"] = t_transit
         self['u'] = u
         self['u_eq'] = u_eq
-        self.u_unmasked = u
+        self.__dict__["u_unmasked"] = u
         self['v'] = v
         self['v_eq'] = v_eq
-        self.v_unmasked = v
+        self.__dict__["v_unmasked"] = v
         self.tau = tau # time scale in milliseconds
         self.weighted_u_mean = None
         self.weighted_comp_2_mean = None
