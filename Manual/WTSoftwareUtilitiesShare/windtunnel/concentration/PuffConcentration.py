@@ -399,7 +399,8 @@ the csv file contains all necessary data and is properly formatted. Resorting to
         self.x_measure = x_measure
         self.y_measure = y_measure
         self.z_measure = z_measure
-        x = x_measure-y_source
+        # Coordinates relative to the source location (model scale, [mm])
+        x = x_measure - x_source
         y = y_measure-y_source
         z = z_measure-z_source        
         self.x = x

@@ -34,16 +34,38 @@ def load_avg_file(filepath):
         if scale_match:
             metadata['geometric_scale'] = float(scale_match.group(1))
         
-        # Extract measurement positions (in mm)
-        x_match = re.search(r'x \(measurement relativ to source\): ([\d\.-]+) \[mm\]', content)
-        y_match = re.search(r'y \(measurement relativ to source\): ([\d\.-]+) \[mm\]', content)
-        z_match = re.search(r'z \(measurement relativ to source\): ([\d\.-]+) \[mm\]', content)
-        if x_match and y_match and z_match:
-            # Convert to full scale (mm to m, then scale up)
-            scale = metadata.get('geometric_scale', 200.0)
-            metadata['x_fs'] = float(x_match.group(1)) / 1000.0 * scale  # mm to m, then scale
-            metadata['y_fs'] = float(y_match.group(1)) / 1000.0 * scale
-            metadata['z_fs'] = float(z_match.group(1)) / 1000.0 * scale
+        # Extract positions (in mm)
+        #
+        # Note: files contain BOTH:
+        # - x/y/z: measurement relative to source (can be negative in z if probe is below source)
+        # - x_measure/y_measure/z_measure: absolute probe position in model scale coordinates
+        #
+        # For "X_fs [m] / Y_fs [m] / Z_fs [m]" we treat this as the *measurement location*,
+        # i.e. x_measure/y_measure/z_measure scaled to full scale.
+        x_meas = re.search(r'x_measure:\s*([\d\.-]+)\s*\[mm\]', content)
+        y_meas = re.search(r'y_measure:\s*([\d\.-]+)\s*\[mm\]', content)
+        z_meas = re.search(r'z_measure:\s*([\d\.-]+)\s*\[mm\]', content)
+
+        # Keep the relative-to-source values around for debugging (not exported by default).
+        x_rel = re.search(r'x \(measurement relativ to source\):\s*([\d\.-]+)\s*\[mm\]', content)
+        y_rel = re.search(r'y \(measurement relativ to source\):\s*([\d\.-]+)\s*\[mm\]', content)
+        z_rel = re.search(r'z \(measurement relativ to source\):\s*([\d\.-]+)\s*\[mm\]', content)
+
+        scale = metadata.get('geometric_scale', 200.0)
+        if x_meas and y_meas and z_meas:
+            metadata['x_fs'] = float(x_meas.group(1)) / 1000.0 * scale  # mm -> m -> scale
+            metadata['y_fs'] = float(y_meas.group(1)) / 1000.0 * scale
+            metadata['z_fs'] = float(z_meas.group(1)) / 1000.0 * scale
+        elif x_rel and y_rel and z_rel:
+            # Backwards-compatible fallback (older files might not have x_measure/...).
+            metadata['x_fs'] = float(x_rel.group(1)) / 1000.0 * scale
+            metadata['y_fs'] = float(y_rel.group(1)) / 1000.0 * scale
+            metadata['z_fs'] = float(z_rel.group(1)) / 1000.0 * scale
+
+        if x_rel and y_rel and z_rel:
+            metadata['x_rel_fs'] = float(x_rel.group(1)) / 1000.0 * scale
+            metadata['y_rel_fs'] = float(y_rel.group(1)) / 1000.0 * scale
+            metadata['z_rel_fs'] = float(z_rel.group(1)) / 1000.0 * scale
 
         #wtref = re.search(r'\(wtref): ([\d\.-]+) \[m/s\]', content)
         wtref_fs = re.search(r'full scale wtref: ([\d\.-]+)\[m/s\]', content)
@@ -99,16 +121,29 @@ def load_stats_file(filepath):
         if scale_match:
             metadata['geometric_scale'] = float(scale_match.group(1))
         
-        # Extract measurement positions (in mm)
-        x_match = re.search(r'x \(measurement relativ to source\): ([\d\.-]+) \[mm\]', content)
-        y_match = re.search(r'y \(measurement relativ to source\): ([\d\.-]+) \[mm\]', content)
-        z_match = re.search(r'z \(measurement relativ to source\): ([\d\.-]+) \[mm\]', content)
-        if x_match and y_match and z_match:
-            # Convert to full scale (mm to m, then scale up)
-            scale = metadata.get('geometric_scale', 200.0)
-            metadata['x_fs'] = float(x_match.group(1)) / 1000.0 * scale  # mm to m, then scale
-            metadata['y_fs'] = float(y_match.group(1)) / 1000.0 * scale
-            metadata['z_fs'] = float(z_match.group(1)) / 1000.0 * scale
+        # Extract positions (in mm) - same logic as avg files, see load_avg_file().
+        x_meas = re.search(r'x_measure:\s*([\d\.-]+)\s*\[mm\]', content)
+        y_meas = re.search(r'y_measure:\s*([\d\.-]+)\s*\[mm\]', content)
+        z_meas = re.search(r'z_measure:\s*([\d\.-]+)\s*\[mm\]', content)
+
+        x_rel = re.search(r'x \(measurement relativ to source\):\s*([\d\.-]+)\s*\[mm\]', content)
+        y_rel = re.search(r'y \(measurement relativ to source\):\s*([\d\.-]+)\s*\[mm\]', content)
+        z_rel = re.search(r'z \(measurement relativ to source\):\s*([\d\.-]+)\s*\[mm\]', content)
+
+        scale = metadata.get('geometric_scale', 200.0)
+        if x_meas and y_meas and z_meas:
+            metadata['x_fs'] = float(x_meas.group(1)) / 1000.0 * scale
+            metadata['y_fs'] = float(y_meas.group(1)) / 1000.0 * scale
+            metadata['z_fs'] = float(z_meas.group(1)) / 1000.0 * scale
+        elif x_rel and y_rel and z_rel:
+            metadata['x_fs'] = float(x_rel.group(1)) / 1000.0 * scale
+            metadata['y_fs'] = float(y_rel.group(1)) / 1000.0 * scale
+            metadata['z_fs'] = float(z_rel.group(1)) / 1000.0 * scale
+
+        if x_rel and y_rel and z_rel:
+            metadata['x_rel_fs'] = float(x_rel.group(1)) / 1000.0 * scale
+            metadata['y_rel_fs'] = float(y_rel.group(1)) / 1000.0 * scale
+            metadata['z_rel_fs'] = float(z_rel.group(1)) / 1000.0 * scale
         
         #wtref = re.search(r'\(wtref): ([\d\.-]+) \[m/s\]', content)
         wtref_fs = re.search(r'full scale wtref: ([\d\.-]+)\[m/s\]', content)
