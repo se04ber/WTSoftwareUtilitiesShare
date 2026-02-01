@@ -1,7 +1,6 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 import numpy as np
-import numpy.matlib
 import math
 import logging
 import os
@@ -78,6 +77,14 @@ class EnsembleAnalysis(pd.DataFrame):
         self.ref_height = None
         self.ref_length = None	
         self.scaling_factor = None			
+
+        # `numpy.matlib` is deprecated; we only needed it for `repmat(...)[0, idx]`
+        # patterns to force 2D shapes. Use `np.atleast_2d` instead (no behavior change).
+
+    @staticmethod
+    def _row_select(data, indices):
+        """Return a 2D (1, N) view of `data` selecting `indices`."""
+        return np.atleast_2d(np.asarray(data))[:, indices]
         #self.begin_release_period = None	
         #self.end_release_period = None		
         #self.begin_release_index = None	
@@ -270,7 +277,7 @@ class EnsembleAnalysis(pd.DataFrame):
                self.ensemble_min[i,:]=np.nan
             else: 
                puff_numbers=self.get_ensembles(ensemble_size=i)	
-               self.ensemble_min[i,:]=np.matlib.repmat(self.data,np.shape(self.data)[0],1)[0,puff_numbers].min(axis=1)
+               self.ensemble_min[i,:]=self._row_select(self.data, puff_numbers).min(axis=1)
 			   
     def get_ensemble_max(self):
         """
@@ -287,7 +294,7 @@ class EnsembleAnalysis(pd.DataFrame):
                self.ensemble_max[i,:]=np.nan
             else: 
                puff_numbers=self.get_ensembles(ensemble_size=i)	
-               self.ensemble_max[i,:]=np.matlib.repmat(self.data,np.shape(self.data)[0],1)[0,puff_numbers].max(axis=1)
+               self.ensemble_max[i,:]=self._row_select(self.data, puff_numbers).max(axis=1)
 
     def get_ensemble_mean(self):
         """
@@ -303,7 +310,7 @@ class EnsembleAnalysis(pd.DataFrame):
                self.ensemble_mean[i,:]=np.nan
             else: 
                puff_numbers=self.get_ensembles(ensemble_size=i)	
-               self.ensemble_mean[i,:]=np.matlib.repmat(self.data,np.shape(self.data)[0],1)[0,puff_numbers].mean(axis=1)	
+               self.ensemble_mean[i,:]=self._row_select(self.data, puff_numbers).mean(axis=1)	
 			   
     def get_ensemble_variance(self):
         """
@@ -319,7 +326,7 @@ class EnsembleAnalysis(pd.DataFrame):
                self.ensemble_var[i,:]=np.nan
             else: 
                puff_numbers=self.get_ensembles(ensemble_size=i)	
-               self.ensemble_var[i,:]=np.matlib.repmat(self.data,np.shape(self.data)[0],1)[0,puff_numbers].var(axis=1)	
+               self.ensemble_var[i,:]=self._row_select(self.data, puff_numbers).var(axis=1)	
 
     def get_ensemble_variance(self):
         """Calculate mean value of each individual ensemble. Output is array of values, with the row denoting the ensemble size,
@@ -332,7 +339,7 @@ class EnsembleAnalysis(pd.DataFrame):
                self.ensemble_std[i,:]=np.nan
             else: 
                puff_numbers=self.get_ensembles(ensemble_size=i)	
-               self.ensemble_std[i,:]=np.matlib.repmat(self.data,np.shape(self.data)[0],1)[0,puff_numbers].std(axis=1)		
+               self.ensemble_std[i,:]=self._row_select(self.data, puff_numbers).std(axis=1)		
 			   
     def calc_n_classes(self,ensemble_size,n=None):
         """
@@ -484,7 +491,7 @@ class EnsembleAnalysis(pd.DataFrame):
                self.class_freq[i,:,:]=np.nan
                self.class_freq_norm[i,:,:]=np.nan			   
             else: 	
-               ensemble_puffs=np.matlib.repmat(self.data,np.shape(self.data)[0],1)[0,self.get_ensembles(ensemble_size=i)]	
+               ensemble_puffs=self._row_select(self.data, self.get_ensembles(ensemble_size=i))
                #for j in range(np.shape(self.class_min)[1]):				
                    #ensemble_puffs=self.data[self.get_ensembles(ensemble_size=i)[j,:]]			   
                if (np.int64(self.n_classes_raw[i,0]) - (self.n_classes_raw[i,0])) != 0:				  
@@ -1038,7 +1045,7 @@ class EnsembleAnalysis(pd.DataFrame):
                 puff_numbers = self.get_ensembles(ensemble_size=i)
                 
                 # Replicate data array for vectorized calculations
-                data_matrix = np.matlib.repmat(self.data, n_ensembles, 1)[0,puff_numbers]
+                data_matrix = self._row_select(self.data, puff_numbers)
                 
                 # Calculate statistics
                 self.ensemble_mean[i,:] = np.mean(data_matrix, axis=1)

@@ -65,8 +65,8 @@ def plot_windrose(inFF,inDD, num_bars = 10, ax = None, left_legend = False):
     dd_range = min(factors_of_360[factors_of_360 > 360/num_bars]) 
     labels = []
     for i,f in enumerate(ffs[:-2]):
-       labels.append(r'$'+'{0:.2f}-{1:.2f}'.format(f,ffs[i+1])+'\ ms^{-1}$')
-    labels.append(r'$'+'>{0:.2f}'.format(ffs[-2])+'\ ms^{-1}$')
+       labels.append(r'$'+'{0:.2f}-{1:.2f}'.format(f,ffs[i+1])+r'\ ms^{-1}$')
+    labels.append(r'$'+'>{0:.2f}'.format(ffs[-2])+r'\ ms^{-1}$')
     
     ##  DATA PROCESSING
     dd,ff = Windrose(np.asarray(inDD),np.asarray(inFF)).pack(dd_range,ffs)
@@ -129,8 +129,8 @@ def plot_DWD_windrose(inFF,inDD):
     dd_range = 30.
     labels = []
     for i,f in enumerate(ffs[:-2]):
-       labels.append(r'$'+'{0:.2f}-{1:.2f}'.format(f,ffs[i+1])+'\ ms^{-1}$')
-    labels.append(r'$'+'>{0:.2f}'.format(ffs[-2])+'\ ms^{-1}$')
+       labels.append(r'$'+'{0:.2f}-{1:.2f}'.format(f,ffs[i+1])+r'\ ms^{-1}$')
+    labels.append(r'$'+'>{0:.2f}'.format(ffs[-2])+r'\ ms^{-1}$')
     
     ##  DATA PROCESSING
     dd,ff = Windrose(inDD,inFF).pack(dd_range,ffs)
@@ -179,8 +179,8 @@ def plot_rose(inFF,inDD,ff_steps,dd_range):
     
     labels = []
     for i,f in enumerate(ff_steps[:-2]):
-       labels.append(r'$'+'{0:.2f}-{1:.2f}'.format(f,ff_steps[i+1])+'\ ms^{-1}$')
-    labels.append(r'$'+'>{0:.2f}'.format(ff_steps[-2])+'\ ms^{-1}$')
+       labels.append(r'$'+'{0:.2f}-{1:.2f}'.format(f,ff_steps[i+1])+r'\ ms^{-1}$')
+    labels.append(r'$'+'>{0:.2f}'.format(ff_steps[-2])+r'\ ms^{-1}$')
     
     ##  DATA PROCESSING
     dd,ff = Windrose(inDD,inFF).pack(dd_range,ff_steps)

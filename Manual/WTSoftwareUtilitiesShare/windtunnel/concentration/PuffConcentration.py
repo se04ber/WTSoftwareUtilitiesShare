@@ -1396,9 +1396,9 @@ the csv file contains all necessary data and is properly formatted. Resorting to
             #edit 07/26/2019: no puff before start of data aquisiton
             #edit 09/26/2019: added units to dosage        
             if full_scale=='ms':
-               ax.set_title('Puff ' + str(np.int64(self.begin_release_period[i]))+' (Model Scale), Dosage of '+str(np.round(self.dosage[index],1)) + ' ppm$\mathrm{_v}$s',fontsize=40)
+               ax.set_title('Puff ' + str(np.int64(self.begin_release_period[i]))+' (Model Scale), Dosage of '+str(np.round(self.dosage[index],1)) + ' ppm$\\mathrm{_v}$s',fontsize=40)
             elif full_scale=='fs':
-               ax.set_title('Puff ' + str(np.int64(self.begin_release_period[i]))+' (Full Scale), Dosage of '+str(np.round(self.dosage[index],1)) + ' ppm$\mathrm{_v}$s',fontsize=40)
+               ax.set_title('Puff ' + str(np.int64(self.begin_release_period[i]))+' (Full Scale), Dosage of '+str(np.round(self.dosage[index],1)) + ' ppm$\\mathrm{_v}$s',fontsize=40)
             elif full_scale=='nd':
                ax.set_title('Puff ' + str(np.int64(self.begin_release_period[i]))+' (Non-dimensional), Dosage of '+str(np.round(self.dosage[index],1)) ,fontsize=40)               
             else:
@@ -1515,9 +1515,9 @@ the csv file contains all necessary data and is properly formatted. Resorting to
             plt.axvline(x=np.mean(self.peak_time),linewidth=5,color='b',linestyle='--')			
             plt.axvline(x=np.mean(self.leaving_time),linewidth=5,color='b',linestyle='--')
             if full_scale=='ms':
-               ax.set_title('Mean Puff (Model Scale), with Mean Dosage of '+str(np.round(np.mean(self.dosage),1)) + ' ppm $\mathrm{_v}$s',fontsize=40)
+               ax.set_title('Mean Puff (Model Scale), with Mean Dosage of '+str(np.round(np.mean(self.dosage),1)) + ' ppm $\\mathrm{_v}$s',fontsize=40)
             elif full_scale=='fs':
-               ax.set_title('Mean Puff (Full Scale), with Mean Dosage of '+str(np.round(np.mean(self.dosage),1)) + ' ppm $\mathrm{_v}$s',fontsize=40)
+               ax.set_title('Mean Puff (Full Scale), with Mean Dosage of '+str(np.round(np.mean(self.dosage),1)) + ' ppm $\\mathrm{_v}$s',fontsize=40)
             elif full_scale=='nd':
                ax.set_title('Mean Puff (Non-Dimensional), with Mean Dosage of '+str(np.round(np.mean(self.dosage),1)) ,fontsize=40)               
             else:

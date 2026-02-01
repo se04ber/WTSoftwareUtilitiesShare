@@ -435,7 +435,11 @@ def plot_fluxes(data, heights, yerr=0, component='v', var_lat='Y', lat=False,
             if(Labels!=None):
                 ax.legend([l],Labels,loc='best',fontsize=16)
             ax.legend([l],labels,loc='best',fontsize=16)
-        ax.set_xlabel(xLabel if xLabel is not None else r'u'+ '\'' +component+'\'$\cdot U_{0}^{-2}\ (-)$')
+        ax.set_xlabel(
+            xLabel
+            if xLabel is not None
+            else rf"u'{component}'$\cdot U_{{0}}^{{-2}}\ (-)$"
+        )
         ax.set_ylabel(yLabel if yLabel is not None else 'z full-scale (m)') #fontsize=11
         ax.set_xlim(xAchse if xAchse is not None else (0.0,70.0))
         ax.set_ylim(yAchse if xAchse is not None else (0.0,0.050))
@@ -450,7 +454,11 @@ def plot_fluxes(data, heights, yerr=0, component='v', var_lat='Y', lat=False,
     else:
         if(showLegend==True):
             ax.legend([l],labels,loc='best',fontsize=16)
-        ax.set_xlabel(xLabel if xLabel is not None else r'u' + '\'' + component + '\' $\cdot u_{ref}^{-2}$ $(-)$')
+        ax.set_xlabel(
+            xLabel
+            if xLabel is not None
+            else rf"u'{component}' $\cdot u_{{ref}}^{{-2}}$ $(-)$"
+        )
         ax.set_ylabel(yLabel if yLabel is not None else var_lat+' full-scale (m)') #fontsize=11
         ax.set_xlim(xAchse if xAchse is not None else (0.0,70.0))
         ax.set_ylim(yAchse if xAchse is not None else (0.0,0.050))
@@ -514,7 +522,11 @@ def plot_fluxes_log(data, heights, yerr=0, component='v',
                 label='10% range of low point mean')
     if(showLegend==True):
         ax.legend([l],labels,loc='best',fontsize=16, numpoints=1)
-    ax.set_xlabel(xLabel if xLabel is not None else r'u' + '\'' + component + '\' $\cdot u_{ref}^{-2}$ $(-)$')
+    ax.set_xlabel(
+        xLabel
+        if xLabel is not None
+        else rf"u'{component}' $\cdot u_{{ref}}^{{-2}}$ $(-)$"
+    )
     ax.set_ylabel(yLabel if yLabel is not None else 'r $Z_{fs}$ [m]') #fontsize=11
     
  
